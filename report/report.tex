@@ -31,23 +31,23 @@
 %----------------------------------------------------------------------------------------
 
 % Header
-\JournalInfo{FRI Natural language processing course 2021}
+\JournalInfo{FRI Natural language processing course 2025}
 
 % Interim or final report
 \Archive{Project report} 
 %\Archive{Final report} 
 
 % Article title
-\PaperTitle{Natural language processing course Latex Template} 
+\PaperTitle{Conversational Agent with Retrieval-Augmented Generation} 
 
 % Authors (student competitors) and their info
-\Authors{John Doe, Jane Doe, and Mike Smith}
+\Authors{Blaž Špacapan, Matevž Jecl, Tilen Ožbot}
 
 % Advisors
 \affiliation{\textit{Advisors: Slavko Žitnik}}
 
 % Keywords
-\Keywords{Keyword1, Keyword2, Keyword3 ...}
+\Keywords{RAG, web-scraping}
 \newcommand{\keywordname}{Keywords}
 
 
@@ -77,9 +77,18 @@ The abstract goes here. The abstract goes here. The abstract goes here. The abst
 %----------------------------------------------------------------------------------------
 
 \section*{Introduction}
-	These latex files are intended to serve as a the template for the NLP course at FRI.  The template is adapted from the FRI Data Science Project Competition. template  If you find mistakes in the template or have problems using it, please consult Jure Demšar (\href{mailto:jure.demsar@fri.uni-lj.si}{jure.demsar@fri.uni-lj.si}).
-	
-	In the Introduction section you should write about the relevance of your work (what is the purpose of the project, what will we solve) and about related work (what solutions for the problem already exist). Where appropriate, reference scientific work conducted by other researchers. For example, the work done by Demšar et al. \cite{Demsar2016BalancedMixture} is very important for our project. The abbreviation et al. is for et alia, which in latin means and others, we use this abbreviation when there are more than two authors of the work we are citing. If there are two authors (or if there is a single author) we just write down their surnames. For example, the work done by Demšar and Lebar Bajec \cite{Demsar2017LinguisticEvolution} is also important for successful completion of our project.
+    Various fields such as customer service, education, and even general knowledge have shifted greatly with the introduction of sophisticated language models as conversational agents. Even with all the advancements made in the industry, conventional chatbots depend purely on pre-trained static knowledge, which can quickly become outdated, making it impossible to retrieve accurate information. The goal of this project is to address that gap by creating a chatbot that automatically improves its accuracy and responsiveness by web-scraping related news articles from the web, in real-time.
+    The proposed conversational agent utilizes Retrieval-Augmented Generation (RAG) techniques to dynamically access current information, ensuring the responses provided are accurate and up to date.
+
+    Master's thesis from Chalmers University of Technology exploring enhancements to conversational agents with Retrieval-Augmented Generation by integrating an autoregressive Large Language Model that generates real-time dense retrieval vectors, significantly improving multi-hop reasoning through synthetic data generation and attention-based relabeling to reduce hallucinations \cite{RAG1}.
+
+    Research from ESP Journal of Engineering \& Technology Advancements introduces a conversational Retrieval-Augmented Generation framework designed for real-time crisis management, integrating structured and unstructured data sources to deliver validated, contextually relevant insights that enhance emergency decision-making and response effectiveness \cite{jeta2024}.
+
+    In this article, the authors propose Retrieval-Augmented Generation (RAG) models that integrate parametric seq2seq generation with non-parametric retrieval mechanisms, demonstrating improved performance in conversational agents through enhanced factual accuracy and response specificity in knowledge-intensive interactions \cite{NEURIPS2020_6b493230}.
+
+    The paper proposes a misinformation detection framework, FCRV (Full-Context Retrieval and Verification), that integrates claim extraction via Large Language Models (LLMs) with Retrieval-Augmented Generation (RAG) to construct a comprehensive context for news verification, significantly improving detection accuracy, robustness, and scalability against both human and AI-generated fake news \cite{10826000}.
+
+    The paper demonstrates how Retrieval-Augmented Generation (RAG) with Large Language Models (LLMs) effectively addresses challenges in extracting precise business event information from diverse and evolving data sources, significantly enhancing adaptability and accuracy in dynamic business environments \cite{ARSLAN20244534}.
 
 
 %------------------------------------------------
