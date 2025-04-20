@@ -2,6 +2,8 @@ import requests
 from lxml import etree
 from datetime import datetime
 import time
+from embeddings import store_pieces
+from db import get_article
 
 def replace_slovenian_months(date_str):
     months = {
@@ -36,7 +38,7 @@ def get_preview_data(article):
     title_text = title[0].text.strip() if title else "No title text found"
     date = article.xpath("./p[contains(@class, 'media-meta')]/text()")
 
-    date_text = date[0].strip() if date else "No date found"
+    date_text = date[0].strip() if date else None
     return title_text, subcategory, date_text, url
 
 def get_article_data(article_content):
@@ -48,8 +50,8 @@ def get_article_data(article_content):
 
     meta_container = root.xpath('//div[@class="article-meta"]')
     author_name = "No author found"
-    formatted_date = "No date found"
-    if meta_container and len(meta_container) > 1:
+    formatted_date = None
+    if meta_container and len(meta_container) > 0:
         author_divs = meta_container[0].xpath(".//div[@class='author-name']")
         if author_divs:
             div = author_divs[0]
@@ -70,7 +72,7 @@ def get_article_data(article_content):
             # print("Time:", time.strip())
             formatted_date = datetime.strptime(f'{date} {time}', '%d. %B %Y %H.%M')
         else:
-            detailed_date = "No date found"
+            detailed_date = None
     header = root.xpath('//header[@class="article-header"]')
     subtitle = header[0].xpath('./div[@class="subtitle"]')
     recap = header[0].xpath('./p[@class="lead"]')
@@ -131,7 +133,6 @@ def get_article_data(article_content):
 
 def search_news(query, s=None, sort=1, a=1, d=-1, w=-1, per_page=100, group=1):
     search_url = f"https://www.rtvslo.si/iskalnik"
-    # s=3: for sport (remove for all)
     # from-to in format YYYY-MM-DD
     params = {
         'q': query,
@@ -144,6 +145,7 @@ def search_news(query, s=None, sort=1, a=1, d=-1, w=-1, per_page=100, group=1):
         'group': group # (1=novice, 15=video, 16=audio)
     }
     response = requests.get(search_url, params=params, headers={'User-Agent': 'onj-fri'})
+    print(f"Response URL: {response.url}")
     response.raise_for_status()  # blows up on HTTP errors
 
     # 2. Parse the HTML
@@ -157,6 +159,13 @@ def search_news(query, s=None, sort=1, a=1, d=-1, w=-1, per_page=100, group=1):
         start_time = time.time()
         fetched_article = {}
         title, subcategory, date_text, url = get_preview_data(article)
+        if "radio-si" in url or "capodistria" in url:
+            print("Skipping article", url)
+            continue
+        existing_article = get_article(url)
+        if existing_article:
+            print(f"Article already exists in the database: {url}")
+            continue
         fetched_article['title'] = title
         fetched_article['subcategory'] = subcategory
         fetched_article['date'] = date_text
@@ -165,9 +174,6 @@ def search_news(query, s=None, sort=1, a=1, d=-1, w=-1, per_page=100, group=1):
         # print(f"Date: {date_text}")
         # print(f"URL: {url}")
         # print("-" * 40)
-        if "radio-si" in url:
-            print("Skipping radio article")
-            continue
         time.sleep(1)  # be nice to the server
         article_response = requests.get(url, headers={'User-Agent': 'onj-fri'})
         article_response.raise_for_status()
@@ -178,6 +184,17 @@ def search_news(query, s=None, sort=1, a=1, d=-1, w=-1, per_page=100, group=1):
         fetched_article['section'] = section
         fetched_article['author'] = author
         fetched_article['date'] = date
+        meta = {
+            "title": title,
+            "subtitle": subtitle,
+            "recap": recap,
+            "published_at": date,
+            "section": section,
+            "author": author,
+            "url": url,
+            "subcategory": subcategory
+        }
+        store_pieces(meta, pieces)
         # print("Subtitle:", subtitle)
         # print("Recap:", recap)
         # print("Content:")
@@ -198,3 +215,20 @@ def search_news(query, s=None, sort=1, a=1, d=-1, w=-1, per_page=100, group=1):
         elapsed_time = end_time - start_time
         print(f"Time taken to fetch article {title}: {elapsed_time:.2f} seconds.")
     return fetched_articles
+
+def compare_query_results(query_1, query_2):
+    articles_1 = search_news(query_1, per_page=10)
+    articles_2 = search_news(query_2, per_page=10)
+
+    # Compare the two lists of articles
+    if len(articles_1) != len(articles_2):
+        print(f"Number of articles for '{query_1}' and '{query_2}' are different.")
+        return False
+
+    for article_1, article_2 in zip(articles_1, articles_2):
+        if article_1['title'] != article_2['title']:
+            print(f"Article titles do not match: '{article_1['title']}' vs '{article_2['title']}'")
+            return False
+
+    print("All articles match.")
+    return True
