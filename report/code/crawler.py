@@ -5,6 +5,7 @@ import time
 from embeddings import store_pieces
 from db import get_article
 
+
 def replace_slovenian_months(date_str):
     months = {
         "januar": "January",
@@ -18,28 +19,30 @@ def replace_slovenian_months(date_str):
         "september": "September",
         "oktober": "October",
         "november": "November",
-        "december": "December"
+        "december": "December",
     }
     for slovenian, english in months.items():
         date_str = date_str.replace(slovenian, english)
     return date_str
 
+
 def get_preview_data(article):
     h3 = article.xpath(".//h3")
     if h3:
         h3 = h3[0]
-    
+
     link = h3.xpath("./span[@class='news-cat']/a")
     if link:
         link = link[0]
     subcategory = link.text.strip() if link.text else "No subcategory found"
     title = h3.xpath("./a")
-    url = title[0].get('href') if title else "No URL found"
+    url = title[0].get("href") if title else "No URL found"
     title_text = title[0].text.strip() if title else "No title text found"
     date = article.xpath("./p[contains(@class, 'media-meta')]/text()")
 
     date_text = date[0].strip() if date else None
     return title_text, subcategory, date_text, url
+
 
 def get_article_data(article_content):
     root = etree.HTML(article_content)
@@ -70,7 +73,7 @@ def get_article_data(article_content):
             date = replace_slovenian_months(date)
             # print("Date:", date.strip())
             # print("Time:", time.strip())
-            formatted_date = datetime.strptime(f'{date} {time}', '%d. %B %Y %H.%M')
+            formatted_date = datetime.strptime(f"{date} {time}", "%d. %B %Y %H.%M")
         else:
             detailed_date = None
     header = root.xpath('//header[@class="article-header"]')
@@ -89,7 +92,7 @@ def get_article_data(article_content):
     body = root.xpath('//div[@class="article-body"]')
     article = body[0].xpath('./article[@class="article"]')
     pieces = []
-# select all direct children (elements only)
+    # select all direct children (elements only)
     for elem in article[0].xpath("./*"):
         tag = elem.tag.lower()
 
@@ -106,7 +109,9 @@ def get_article_data(article_content):
             if "image" in cls.split():
                 # find <figcaption> anywhere inside
                 cap_nodes = elem.xpath(".//figcaption//text()")
-                caption = "".join(cap_nodes).strip() if cap_nodes else "No caption found"
+                caption = (
+                    "".join(cap_nodes).strip() if cap_nodes else "No caption found"
+                )
                 pieces.append({"type": "image", "caption": caption})
 
             # RTV-TABLE FIGURE
@@ -118,7 +123,9 @@ def get_article_data(article_content):
                         row_cells = []
                         for cell in tr.xpath("./th|./td"):
                             # collect _all_ descendant text nodes
-                            texts = [t.strip() for t in cell.xpath(".//text()") if t.strip()]
+                            texts = [
+                                t.strip() for t in cell.xpath(".//text()") if t.strip()
+                            ]
                             cell_text = " ".join(texts)
                             row_cells.append(cell_text)
                         rows.append(row_cells)
@@ -131,20 +138,23 @@ def get_article_data(article_content):
             continue
     return pieces, subtitle_text, recap_text, section_text, author_name, formatted_date
 
+
 def search_news(query, s=None, sort=1, a=1, d=-1, w=-1, per_page=100, group=1):
     search_url = f"https://www.rtvslo.si/iskalnik"
     # from-to in format YYYY-MM-DD
     params = {
-        'q': query,
-        's': s,  # 3 for sport, null for all
-        'sort': sort,  # (1=newest, 2=popular)
-        'a': a,  # Časovno obdobje (1=all, 2=last 24h, 3=last week, 4=last month, 5=last year)
-        'd': d,  # 
-        'w': w,  # 
-        'per_page': per_page,  # number of results per page
-        'group': group # (1=novice, 15=video, 16=audio)
+        "q": query,
+        "s": s,  # 3 for sport, null for all
+        "sort": sort,  # (1=newest, 2=popular)
+        "a": a,  # Časovno obdobje (1=all, 2=last 24h, 3=last week, 4=last month, 5=last year)
+        "d": d,  #
+        "w": w,  #
+        "per_page": per_page,  # number of results per page
+        "group": group,  # (1=novice, 15=video, 16=audio)
     }
-    response = requests.get(search_url, params=params, headers={'User-Agent': 'onj-fri'})
+    response = requests.get(
+        search_url, params=params, headers={"User-Agent": "onj-fri"}
+    )
     print(f"Response URL: {response.url}")
     response.raise_for_status()  # blows up on HTTP errors
 
@@ -166,24 +176,26 @@ def search_news(query, s=None, sort=1, a=1, d=-1, w=-1, per_page=100, group=1):
         if existing_article:
             print(f"Article already exists in the database: {url}")
             continue
-        fetched_article['title'] = title
-        fetched_article['subcategory'] = subcategory
-        fetched_article['date'] = date_text
+        fetched_article["title"] = title
+        fetched_article["subcategory"] = subcategory
+        fetched_article["date"] = date_text
         # print(f"Title: {title}")
         # print(f"Subcategory: {subcategory}")
         # print(f"Date: {date_text}")
         # print(f"URL: {url}")
         # print("-" * 40)
         time.sleep(1)  # be nice to the server
-        article_response = requests.get(url, headers={'User-Agent': 'onj-fri'})
+        article_response = requests.get(url, headers={"User-Agent": "onj-fri"})
         article_response.raise_for_status()
-        pieces, subtitle, recap, section, author, date = get_article_data(article_response.content)   
-        fetched_article['pieces'] = pieces
-        fetched_article['subtitle'] = subtitle
-        fetched_article['recap'] = recap
-        fetched_article['section'] = section
-        fetched_article['author'] = author
-        fetched_article['date'] = date
+        pieces, subtitle, recap, section, author, date = get_article_data(
+            article_response.content
+        )
+        fetched_article["pieces"] = pieces
+        fetched_article["subtitle"] = subtitle
+        fetched_article["recap"] = recap
+        fetched_article["section"] = section
+        fetched_article["author"] = author
+        fetched_article["date"] = date
         meta = {
             "title": title,
             "subtitle": subtitle,
@@ -192,7 +204,7 @@ def search_news(query, s=None, sort=1, a=1, d=-1, w=-1, per_page=100, group=1):
             "section": section,
             "author": author,
             "url": url,
-            "subcategory": subcategory
+            "subcategory": subcategory,
         }
         store_pieces(meta, pieces)
         # print("Subtitle:", subtitle)
@@ -216,6 +228,7 @@ def search_news(query, s=None, sort=1, a=1, d=-1, w=-1, per_page=100, group=1):
         print(f"Time taken to fetch article {title}: {elapsed_time:.2f} seconds.")
     return fetched_articles
 
+
 def compare_query_results(query_1, query_2):
     articles_1 = search_news(query_1, per_page=10)
     articles_2 = search_news(query_2, per_page=10)
@@ -226,8 +239,10 @@ def compare_query_results(query_1, query_2):
         return False
 
     for article_1, article_2 in zip(articles_1, articles_2):
-        if article_1['title'] != article_2['title']:
-            print(f"Article titles do not match: '{article_1['title']}' vs '{article_2['title']}'")
+        if article_1["title"] != article_2["title"]:
+            print(
+                f"Article titles do not match: '{article_1['title']}' vs '{article_2['title']}'"
+            )
             return False
 
     print("All articles match.")
