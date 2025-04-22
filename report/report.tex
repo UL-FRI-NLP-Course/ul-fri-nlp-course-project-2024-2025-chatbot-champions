@@ -101,7 +101,45 @@ The abstract goes here. The abstract goes here. The abstract goes here. The abst
 
 \subsection*{Data}
 
-News content will be collected exclusively by web‑scraping major outlets (BBC News, CNN, The Guardian, 24ur) as well as regional RSS feeds to ensure broad topical coverage. Each script retrieves full article text and metadata (title, author, publication date, URL) and stores the raw content for processing. A preprocessing pipeline then performs HTML parsing, text normalization, duplicate removal, and formatting. Cleaned articles are converted into vector representations and indexed in a vector database to enable efficient semantic retrieval. This approach produces a continuously updated, semantically organized corpus of both current and historical news articles, supporting rapid access to relevant documents for the conversational agent.  
+News content will be collected exclusively by web‑scraping major outlets (BBC News, CNN, The Guardian, 24ur) as well as regional RSS feeds to ensure broad topical coverage. Each script retrieves full article text and metadata (title, author, publication date, URL) and stores the raw content for processing. A preprocessing pipeline then performs HTML parsing, text normalization, duplicate removal, and formatting. Cleaned articles are converted into vector representations and indexed in a vector database to enable efficient semantic retrieval. This approach produces a continuously updated, semantically organized corpus of both current and historical news articles, supporting rapid access to relevant documents for the conversational agent.
+
+\subsection{Database}
+
+The system uses a PostgreSQL schema with two tables: \\ \texttt{onj.articles} for storing article metadata (e.g., title, URL, publication date, section) and \texttt{onj.article\_pieces} for holding individual content fragments (paragraphs, captions, tables) along with their embeddings. This design cleanly separates high‑level article information from the textual pieces used for semantic search, enabling efficient storage, maintenance, and retrieval of news content.  
+
+\subsection*{Pipeline}
+
+We selected \texttt{rtvslo.si} for initial testing because it offers robust filtering by category and date. For this phase, we focus exclusively on sports news. We use the following parameters when querying the \texttt{rtvslo.si} API:
+
+\begin{itemize}
+  \item \texttt{q}: the search query string
+  \item \texttt{s}: section filter (e.g., \texttt{3} for sports, \texttt{null} for all)
+  \item \texttt{sort}: sort order (\texttt{1} = newest first, \texttt{2} = most popular)
+  \item \texttt{a}: time range (\texttt{1} = all time, \texttt{2} = last 24 h, \texttt{3} = last week, \texttt{4} = last month, \texttt{5} = last year)
+  \item \texttt{per\_page}: number of results to return per page
+  \item \texttt{group}: content type group (\texttt{1} = news, \texttt{15} = video, \texttt{16} = audio)
+\end{itemize}
+
+\begin{enumerate}
+  \item \textbf{Receive user query}:  
+    The system accepts a natural‑language question or request from the user.
+  \item \textbf{Extract keywords from the query}:  
+    Three complementary methods identify salient terms:
+    \begin{itemize}
+      \item \emph{Stop‑Word Filtered Token Extractor}: tokenizes the lowercased question, filters for alphanumeric tokens, and removes Slovene stop words.
+      \item \emph{Part‑of‑Speech Keyword Extractor}: uses a spaCy NLP model to collect tokens tagged as PROPN (proper noun), ADJ (adjective), or NOUN.
+      \item \emph{Named‑Entity Extractor}: uses spaCy to extract named entities (e.g., persons, organizations, locations).
+    \end{itemize}
+  
+  \item \textbf{Perform web‑scraping to discover relevant articles}:  
+    Using the extracted keywords, the scraper queries selected news pages to retrieve potentially relevant articles. Since \texttt{robots.txt} is not provided by the site, we enforce a 1 s timeout between requests to avoid overwhelming the server.
+  
+  \item \textbf{Parse and collect article metadata and content}:  
+    Each fetched page is parsed to extract structured metadata, such as title, author, publication date, and URL and the main text body. Figure and image captions are retrieved, and any tables are converted to plain text. Boilerplate elements (navigation menus, advertisements, footers) are removed to clean up the content. The full article is stored in the \texttt{articles} table, while individual components (paragraphs, captions, tables) are stored in \texttt{article\_pieces}.
+  
+  \item \textbf{Generate embeddings and store in the vector database}:  
+    The cleaned text is chunked into passages of optimal length (e.g., 384 tokens) and fed into a pre‑trained embedding model to produce high‑dimensional vectors. These vectors, along with their metadata, are indexed in a vector store (e.g., FAISS or Pinecone) to enable efficient semantic retrieval during real‑time queries.
+\end{enumerate}
 
 \subsection*{Equations}
 
