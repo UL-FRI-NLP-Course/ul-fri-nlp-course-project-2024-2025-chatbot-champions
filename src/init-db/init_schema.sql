@@ -34,6 +34,13 @@ CREATE TABLE IF NOT EXISTS content_chunks (
     -- Defaults to the time the row was inserted.
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 
+    -- TODO: add this
+    -- Consider adding a FOREIGN KEY constraint if you have a separate 'documents' table.
+    -- document_id INT NOT NULL, -- Or BIGINT, UUID, or TEXT depending on your document ID strategy
+
+    -- The sequential index (0-based or 1-based) of this chunk within the original document.
+    -- chunk_index INT NOT NULL,
+
     -- Metadata: Flexible storage for any other relevant information
     -- (e.g., document ID, page number, specific tags). JSONB is efficient.
     metadata JSONB
