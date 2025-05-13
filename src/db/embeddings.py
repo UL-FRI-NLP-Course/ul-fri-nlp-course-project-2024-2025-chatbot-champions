@@ -34,6 +34,9 @@ def store_chunks(article: dict):
     combined_text = " ".join(paragraph_texts)
     title = article.get("title", "").strip()
     text_to_embed = f"{title} {combined_text}".strip()
+    date = article.get("date", "")
+    if date:
+        text_to_embed = f"{date} {text_to_embed}".strip()
 
     if not text_to_embed:
         # print(f"Empty text to embed after combining title and paragraphs for: {article.get('url', 'N/A')}")
@@ -63,11 +66,12 @@ def store_chunks(article: dict):
                     """
                     INSERT INTO content_chunks (chunk_text, embedding, source_identifier)
                     VALUES (%s, %s, %s)
+                    ON CONFLICT (source_identifier) DO NOTHING
                     """,
                     (
                         text_to_embed,
                         embedding,
-                        article.get("url"),  # Use .get for safety
+                        article.get("url"),
                     ),
                 )
             conn.commit()  # Commit the transaction
