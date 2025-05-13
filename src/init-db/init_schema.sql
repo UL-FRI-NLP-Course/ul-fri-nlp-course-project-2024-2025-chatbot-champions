@@ -7,7 +7,11 @@
 
 -- Enable the pgvector extension if it's not already enabled.
 -- This is necessary to use the VECTOR data type and its functions.
-CREATE EXTENSION IF NOT EXISTS vector;
+
+SET search_path TO public;
+DROP EXTENSION IF EXISTS vector CASCADE;
+CREATE EXTENSION IF NOT EXISTS vector SCHEMA public;
+
 
 -- Optional: Drop the table if it exists, useful for resetting during development.
 -- Be CAREFUL using DROP TABLE in production environments!
