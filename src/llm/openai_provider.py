@@ -1,20 +1,27 @@
 import os
-from openai import OpenAI
+import openai
+from openai import OpenAI, APIError
 from .base import LLMProvider
 from typing import List, Dict, Optional
 from .prompt import SYSTEM_PROMPT
+from dotenv import load_dotenv
 
 # Instantiate the OpenAI client
 # It will automatically use the OPENAI_API_KEY environment variable
 # Ensure this variable is set in your .env file
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Select LLM Provider based on environment variable
+openai_api_key = os.getenv("OPENAI_API_KEY").strip()
 try:
-    client = OpenAI()
+    client = OpenAI(api_key=openai_api_key)
 except Exception as e:
     print(f"Error initializing OpenAI client: {e}")
     # Handle initialization error appropriately - maybe raise an exception
     # or fallback to a different provider if configured.
     client = None
-
 
 class OpenAIProvider(LLMProvider):
     """
@@ -47,34 +54,31 @@ class OpenAIProvider(LLMProvider):
             history = []
 
         # System prompt explaining the task
-        system_prompt = {
+        system_msg = {
             "role": "system",
-            "content": SYSTEM_PROMPT,
+            "content": (
+                "You are a real-time sports/politics news assistant. "
+                "Cite sources in square brackets like [1]. Keep answers concise."
+            ),
         }
+        assistant_context_msg = {
+            "role": "assistant",
+            "content": f"Context:\n\n{context}",
+        }
+        user_msg = {"role": "user", "content": query}
 
-        # Prepare messages for OpenAI API format
-        messages = [system_prompt]
-        messages.extend(history)  # Add previous turns
-
-        # Add the current user query combined with context
-        # Note: Combining context directly into the user message is one approach.
-        # Another is to put context in the system prompt or a separate user message.
-        messages.append(
-            {
-                "role": "user",
-                "content": f"Based on the following context:\n\n{context}\n\n---\nAnswer the question: {query}",
-            }
-        )
+        messages = [system_msg, assistant_context_msg, user_msg]
 
         try:
             # print("--- Sending request to OpenAI API ---")
             # print(f"Messages: {messages}") # Be careful logging sensitive data
-
+            
             completion = client.chat.completions.create(
-                model=self.model,
+                model="gpt-4o-mini",      # or whatever you deploy
                 messages=messages,
-                temperature=0.7,  # Adjust creativity (0=deterministic, 1=creative)
-                max_tokens=250,  # Limit response length
+                temperature=0.25,
+                max_tokens=250,
+                stream=False,             # flip to True if you stream
             )
 
             # print("--- Received response from OpenAI API ---")
