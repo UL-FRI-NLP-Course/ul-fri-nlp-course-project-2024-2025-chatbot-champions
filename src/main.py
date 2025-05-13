@@ -2,6 +2,7 @@ import os
 import argparse
 from dotenv import load_dotenv
 from typing import List, Dict
+from llm.extract import extract_ner, extract_keywords, extract_pos
 
 # --- Disable Hugging Face Tokenizers Parallelism ---
 # This avoids a warning message when tokenizers are used potentially before fork
@@ -14,13 +15,19 @@ from reranker.rerank import rerank_chunks
 from scraper.rtvslo_crawler import scrape_news, parse_response
 from llm.openai_provider import OpenAIProvider
 from llm.local_provider import LocalProvider
+from llm.gemini_provider import GeminiProvider
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Select LLM Provider based on environment variable
 openai_api_key = os.getenv("OPENAI_API_KEY")
-if openai_api_key:
+google_api_key = os.getenv("GEMINI_API_KEY")
+if google_api_key:
+    print("--- Using Gemini Provider ---")
+
+    llm_provider = GeminiProvider()
+elif openai_api_key:
     print("--- Using OpenAI Provider ---")
     llm_provider = OpenAIProvider()
 else:
@@ -54,12 +61,20 @@ def get_answer(
     # 0. Scrape and Store New Data (Real-time component)
     print(f"--- Scraping and storing new data for query (top {scrape_k} results) ---")
     try:
-        news_response = scrape_news(query, per_page=scrape_k)
+        ner = extract_ner(query)
+        print("NER Keywords: ", ner)
+        keywords = extract_keywords(query)
+        print("Keyword Keywords: ", keywords)
+        pos = extract_pos(query)
+        print("POS Keywords: ", pos)
+        all_keywords = ner + keywords + pos
+        print("All Keywords: ", all_keywords)
+        news_response = scrape_news(all_keywords[0], per_page=scrape_k)
         articles = parse_response(news_response)
         print(f"Found {len(articles)} new articles.")
         if articles:
             for article in articles:
-                print(f"Storing article: {article['url']}")
+                print(f"Storing article: {article['title']}")
                 # This function embeds and stores the chunks from the article
                 store_chunks(article)
             print("Finished storing new articles.")
@@ -130,7 +145,7 @@ def get_answer(
         print(f"Error during answer generation: {e}")
         return "Sorry, I encountered an error while formulating the final answer."
 
-    return final_answer
+    return final_answer, all_keywords[0]
 
 
 if __name__ == "__main__":
@@ -166,7 +181,7 @@ if __name__ == "__main__":
             history_to_pass = chat_history if args.use_chat_history else []
 
             # Execute the pipeline, passing the appropriate history
-            answer = get_answer(user_query, history_to_pass, scrape_k=5)
+            answer, _ = get_answer(user_query, history_to_pass, scrape_k=5)
 
             # Print the final answer
             print("\n--- ANSWER ---")
