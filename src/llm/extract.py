@@ -31,6 +31,18 @@ def extract_ner(text):
     keywords.append(ent.text)
   return keywords
 
+def get_signals(q: str) -> list[str]:
+    ner   = {e.text for e in nlp(q).ents}
+    pos   = {t.text for t in nlp(q) if t.pos_ in {"PROPN", "NOUN", "ADJ"}}
+    bare  = {w for w in word_tokenize(q.lower())
+                 if w.isalnum() and w not in stopwords.words('slovene')}
+    # Preserve original order while deduplicating
+    seen, ordered = set(), []
+    for tok in word_tokenize(q):
+        if tok in ner|pos|bare and tok not in seen:
+            ordered.append(tok); seen.add(tok)
+    return ordered
+
 if __name__ == "__main__":
     text = "Koliko točk je Luka Dončič zadel na zadnji tekmi?"
     keywords = extract_keywords(text)

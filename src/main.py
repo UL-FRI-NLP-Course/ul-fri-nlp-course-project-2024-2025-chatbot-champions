@@ -2,7 +2,7 @@ import os
 import argparse
 from dotenv import load_dotenv
 from typing import List, Dict
-from llm.extract import extract_ner, extract_keywords, extract_pos
+from llm.extract import extract_ner, extract_keywords, extract_pos, get_signals
 
 # --- Disable Hugging Face Tokenizers Parallelism ---
 # This avoids a warning message when tokenizers are used potentially before fork
@@ -16,6 +16,7 @@ from scraper.rtvslo_crawler import scrape_news, parse_response
 from llm.openai_provider import OpenAIProvider
 from llm.local_provider import LocalProvider
 from llm.gemini_provider import GeminiProvider
+from llm.ollama_provider import OllamaProvider
 
 # Load environment variables from .env file
 load_dotenv()
@@ -23,16 +24,17 @@ load_dotenv()
 # Select LLM Provider based on environment variable
 openai_api_key = os.getenv("OPENAI_API_KEY")
 google_api_key = os.getenv("GEMINI_API_KEY")
+# llm_provider = OllamaProvider()
 if google_api_key:
     print("--- Using Gemini Provider ---")
 
     llm_provider = GeminiProvider()
-elif openai_api_key:
-    print("--- Using OpenAI Provider ---")
-    llm_provider = OpenAIProvider()
-else:
-    print("--- Using Local Provider (OpenAI API key not found) ---")
-    llm_provider = LocalProvider()
+# elif openai_api_key:
+#     print("--- Using OpenAI Provider ---")
+#     llm_provider = OpenAIProvider()
+# else:
+#     print("--- Using Local Provider (OpenAI API key not found) ---")
+#     llm_provider = LocalProvider()
 
 
 def get_answer(
@@ -67,9 +69,11 @@ def get_answer(
         print("Keyword Keywords: ", keywords)
         pos = extract_pos(query)
         print("POS Keywords: ", pos)
-        all_keywords = ner + keywords + pos
+        all_keywords = get_signals(query)
         print("All Keywords: ", all_keywords)
-        news_response = scrape_news(all_keywords[0], per_page=scrape_k)
+        # Combine all keywords into a single string for scraping
+        all_keywords_str = " ".join(all_keywords)
+        news_response = scrape_news(all_keywords_str, per_page=scrape_k)
         articles = parse_response(news_response)
         print(f"Found {len(articles)} new articles.")
         if articles:

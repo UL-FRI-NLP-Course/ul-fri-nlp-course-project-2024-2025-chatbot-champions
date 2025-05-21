@@ -16,7 +16,7 @@ QA_PAIRS: List[Tuple[str, str]] = [
 # POS Keywords:  ['točk', 'Luka', 'Dončić', 'zadnji', 'tekmi']
     (
         "Koliko golov je Anže Kopitar dosegel na zadnji tekmi Los Angeles Kings?",
-        "Anže Kopitar je dosegel dva gola.",
+        "Anže Kopitar je dosegel en gol.",
     ),
 # NER Keywords:  ['Anže Kopitar', 'Los Angeles Kings']
 # Keyword Keywords:  ['golov', 'anže', 'kopitar', 'dosegel', 'zadnji', 'tekmi', 'los', 'angeles', 'kings']
@@ -36,7 +36,7 @@ QA_PAIRS: List[Tuple[str, str]] = [
 # Keyword Keywords:  ['točk', 'tadej', 'pogačar', 'zbral', 'zadnji', 'dirki']
 # POS Keywords:  ['točk', 'Tadej', 'Pogačar', 'zadnji', 'dirki', 'Liège', 'Bastogne', 'Liège']
     (
-        "Katero mesto je Ilka Štuhec osvojila na zadnjem smuku v Kvitfjellu?",
+        "Katero mesto je Ilka Štuhec osvojila na zadnjem smuku?",
         "Ilka Štuhec je bila tretja.",
     ),
 # NER Keywords:  ['Ilka Štuhec', 'Kvitfjellu']
