@@ -50,26 +50,8 @@ class OllamaProvider(LLMProvider):  # name kept for drop‑in compatibility
         query: str,
         context: str,
         history: Optional[List[Dict[str, str]]] = None,
-        use_rag: bool = False,
         temperature: float = 0.0,
     ) -> str:
-        """Generate a single‑sentence Slovenian answer.
-
-        Parameters
-        ----------
-        query : str
-            The user question.
-        context : str
-            Retrieved text to ground the answer when ``use_rag`` is True.
-        history : list[dict[str,str]] | None, optional
-            Previous turns with keys ``role`` and ``content``—will be sent as‑is
-            to the model to preserve conversation memory.
-        use_rag : bool, default False
-            If True, the ``context`` is prepended to the prompt instructing the
-            model to ground its answer.
-        temperature : float, default 0.0
-            Sampling temperature.
-        """
         try:
             messages: List[Dict[str, str]] = []
 
@@ -77,8 +59,7 @@ class OllamaProvider(LLMProvider):  # name kept for drop‑in compatibility
             messages.append({"role": "system", "content": _SYSTEM_PROMPT})
 
             # 2) optional RAG context as a system message to guide the model
-            if use_rag and context.strip():
-                messages.append({"role": "system", "content": f"Kontekst:\n{context}"})
+            messages.append({"role": "system", "content": f"Kontekst:\n{context}"})
 
             # 3) prior history, if any
             if history:
