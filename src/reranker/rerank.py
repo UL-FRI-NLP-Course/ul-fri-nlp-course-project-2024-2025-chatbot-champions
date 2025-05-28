@@ -1,4 +1,4 @@
-from sentence_transformers import CrossEncoder  # Uncommented
+from sentence_transformers import CrossEncoder, SentenceTransformer, util
 
 # --- Load the reranker model ---
 # Load a cross-encoder model once (example: ms-marco-MiniLM-L-6-v2 is good for passage ranking)
@@ -56,3 +56,55 @@ def rerank_chunks(query: str, chunks: list[tuple], top_n: int = 3) -> list[tuple
 
     # 5. Return the top N reranked chunks
     return reranked_data[:top_n]
+
+def rerank_documents(query: str, documents: list, model_name: str = 'all-MiniLM-L6-v2'):
+    """
+    Rerank a list of documents by relevance to the query.
+    
+    Parameters:
+    - query (str): The search query.
+    - documents (list of str): Retrieved documents or passages.
+    - model_name (str): Name of the SentenceTransformer model to use.
+    
+    Returns:
+    - List of tuples (document, score) sorted by descending relevance.
+    """
+    # Load the pre-trained model
+    model = SentenceTransformer(model_name)
+    
+    # Compute embeddings for the query and documents
+    query_embedding = model.encode(query, convert_to_tensor=True)
+    doc_embeddings = model.encode(documents, convert_to_tensor=True)
+    
+    # Compute cosine similarity scores
+    scores = util.cos_sim(query_embedding, doc_embeddings)[0]
+    
+    # Pair documents with scores
+    doc_score_pairs = list(zip(scores.cpu().numpy(), documents))
+    
+    # Sort by score in descending order
+    reranked = sorted(doc_score_pairs, key=lambda x: x[0], reverse=True)
+    
+    return reranked
+
+def rerank_with_cross_encoder(query: str, documents: list, 
+                              model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2", score_threshold: float = 0.5):
+    # Load the cross-encoder model
+    cross_encoder_model = CrossEncoder(model_name)
+    
+    # Prepare input pairs: [(query, doc1), (query, doc2), ...]
+    query_doc_pairs = [[query, doc] for doc in documents]
+    
+    # Predict relevance scores for each pair
+    scores = cross_encoder_model.predict(query_doc_pairs)
+    
+    # Pair documents with scores
+    doc_score_pairs = list(zip(scores, documents))
+    
+    # Filter by score_threshold
+    filtered = [pair for pair in doc_score_pairs if pair[0] >= score_threshold]
+    
+    # Sort by score in descending order
+    reranked = sorted(filtered, key=lambda x: x[0], reverse=True)
+    
+    return reranked
