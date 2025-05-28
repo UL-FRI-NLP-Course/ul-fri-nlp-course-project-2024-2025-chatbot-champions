@@ -26,11 +26,11 @@ load_dotenv()
 # Select LLM Provider based on environment variable
 openai_api_key = os.getenv("OPENAI_API_KEY")
 google_api_key = os.getenv("GEMINI_API_KEY")
-llm_provider = OllamaProvider()
-# if google_api_key:
-#     print("--- Using Gemini Provider ---")
+# llm_provider = OllamaProvider()
+if google_api_key:
+    print("--- Using Gemini Provider ---")
 
-#     llm_provider = GeminiProvider()
+    llm_provider = GeminiProvider()
 # elif openai_api_key:
 #     print("--- Using OpenAI Provider ---")
 #     llm_provider = OpenAIProvider()
