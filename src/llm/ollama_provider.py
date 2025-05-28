@@ -15,10 +15,18 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = (
-    "You are a concise assistant. Reply in Slovenian with a single sentence "
-    "that directly answers the question. Do NOT add explanations, reasoning, "
-    "citations, or extra text."
+    "Si jedrnat asistent. Odgovori v slovenščini v naslednji obliki:\n"
+    "Odgovor: {odgovor}\nNajdeno v: {stavku, kjer je bil odgovor najden}\n"
+    "Kontekst je seznam člankov, vsak v naslednji obliki:\n"
+    "[DATE: <datum>]\nTITLE: <naslov>\nSUBTITLE: <podnaslov>\nSUBCATEGORY: <podkategorija>\n"
+    "URL: <url>\nAUTHOR: <avtor>\nSECTION: <sekcija>\nRECAP: <povzetek>\nCONTENT: <vsebina>\n"
+    "Pri iskanju odgovorov uporabi samo polje 'CONTENT' vsakega članka.\n"
+    "Pri navajanju, kje je bil odgovor najden, navedi točen stavek iz polja 'CONTENT'.\n"
+    "Za razvrščanje člankov po datumu vedno uporabi vrednost v polju [DATE: ...].\n"
+    "Ne dodajaj razlag, utemeljitev, citatov ali kakršnegakoli dodatnega besedila zunaj zahtevane oblike.\n"
+    "Če odgovora ni ali ni relevanten v kontekstu, odgovori z \"Ni v podanem kontekstu\" ali \"Ne vem\"."
 )
+
 
 _DEFAULT_MODEL_PATH = os.getenv("LLAMA_MODEL_PATH", "GaMS-9B-Instruct-Q4_k.gguf")
 _DEFAULT_CTX = int(os.getenv("LLAMA_N_CTX", "4096"))

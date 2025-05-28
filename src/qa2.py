@@ -137,8 +137,8 @@ def run_evaluation():
 
         status = "✅" if ok else "❌"
         print(f"{idx:2}. {status} Q: {question}")
-        print(f"   → Model:    {answer}")
-        print(f"   → Expected: {expected}\n")
+        print(f"   → Model:\n{answer}")
+        print(f"   → Expected:\n{expected}\n")
 
     print("─" * 60)
     print(f"Accuracy: {correct}/{total} = {correct / total:.0%}\n")

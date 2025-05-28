@@ -2,21 +2,23 @@ import os
 import argparse
 from dotenv import load_dotenv
 from typing import List, Dict
-from llm.extract import extract_ner, extract_keywords, extract_pos, get_signals
+# from llm.extract import extract_ner, extract_keywords, extract_pos, get_signals
+from llm.extract2_gemini_api import extract_keywords_from_text
 
 # --- Disable Hugging Face Tokenizers Parallelism ---
 # This avoids a warning message when tokenizers are used potentially before fork
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # ---------------------------------------------------
 
-from db.embeddings import get_embedding, store_chunks
+from db.embeddings import get_embedding, store_chunks, convert_article_to_chunk
 from db.db import get_top_n_chunks
-from reranker.rerank import rerank_chunks
+from reranker.rerank import rerank_chunks, rerank_documents, rerank_with_cross_encoder
 from scraper.rtvslo_crawler import scrape_news, parse_response
 from llm.openai_provider import OpenAIProvider
 from llm.local_provider import LocalProvider
 from llm.gemini_provider import GeminiProvider
 from llm.ollama_provider import OllamaProvider
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -24,11 +26,11 @@ load_dotenv()
 # Select LLM Provider based on environment variable
 openai_api_key = os.getenv("OPENAI_API_KEY")
 google_api_key = os.getenv("GEMINI_API_KEY")
-# llm_provider = OllamaProvider()
-if google_api_key:
-    print("--- Using Gemini Provider ---")
+llm_provider = OllamaProvider()
+# if google_api_key:
+#     print("--- Using Gemini Provider ---")
 
-    llm_provider = GeminiProvider()
+#     llm_provider = GeminiProvider()
 # elif openai_api_key:
 #     print("--- Using OpenAI Provider ---")
 #     llm_provider = OpenAIProvider()
@@ -40,9 +42,9 @@ if google_api_key:
 def get_answer(
     query: str,
     history: List[Dict[str, str]],
-    initial_k: int = 10,
+    initial_k: int = 20,
     rerank_top_n: int = 3,
-    scrape_k: int = 5,
+    scrape_k: int = 20,
 ) -> str:
     """
     Runs the full RAG pipeline: Scrape -> Store -> Embed Query -> Retrieve -> Rerank -> Generate.
@@ -63,17 +65,21 @@ def get_answer(
     # 0. Scrape and Store New Data (Real-time component)
     print(f"--- Scraping and storing new data for query (top {scrape_k} results) ---")
     try:
-        ner = extract_ner(query)
-        print("NER Keywords: ", ner)
-        keywords = extract_keywords(query)
-        print("Keyword Keywords: ", keywords)
-        pos = extract_pos(query)
-        print("POS Keywords: ", pos)
-        all_keywords = get_signals(query)
-        print("All Keywords: ", all_keywords)
-        # Combine all keywords into a single string for scraping
-        all_keywords_str = " ".join(all_keywords)
-        news_response = scrape_news(all_keywords_str, per_page=scrape_k)
+        # ner = extract_ner(query)
+        # print("NER Keywords: ", ner)
+        # keywords = extract_keywords(query)
+        # print("Keyword Keywords: ", keywords)
+        # pos = extract_pos(query)
+        # print("POS Keywords: ", pos)
+        # all_keywords = get_signals(query)
+        # print("All Keywords: ", all_keywords)
+        # # Combine all keywords into a single string for scraping
+        # all_keywords_str = " ".join(all_keywords)
+        keywords2 = extract_keywords_from_text(query)
+        if keywords2 is None:
+            return ""
+        print("Extracted Keywords from text: ", keywords2)
+        news_response = scrape_news(keywords2, per_page=scrape_k)
         articles = parse_response(news_response)
         print(f"Found {len(articles)} new articles.")
         if articles:
@@ -86,32 +92,32 @@ def get_answer(
             print("No new articles found or parsed for this query.")
     except Exception as e:
         print(f"Error during scraping/storing: {e}. Proceeding with existing data.")
-        # Decide if you want to return an error or just continue
+        return "Sorry, I encountered an error while scraping or storing new data."
 
     # 1. Embed the query
-    print("--- Embedding query ---")
-    try:
-        query_embedding = get_embedding(query)
-    except Exception as e:
-        print(f"Error getting embedding: {e}")
-        return "Sorry, I encountered an error processing your query embedding."
+    # print("--- Embedding query ---")
+    # try:
+    #     query_embedding = get_embedding(query)
+    # except Exception as e:
+    #     print(f"Error getting embedding: {e}")
+    #     return "Sorry, I encountered an error processing your query embedding."
     # print(f"Query embedding type: {type(query_embedding)}") # Optional debug
 
     # 2. Initial Retrieval (from potentially updated DB)
-    print("--- Retrieving initial chunks from DB ---")
-    try:
-        initial_chunks = get_top_n_chunks(query_embedding, n=initial_k)
-    except Exception as e:
-        print(f"Error retrieving chunks from DB: {e}")
-        return "Sorry, I encountered an error retrieving information from the database."
+    # print("--- Retrieving initial chunks from DB ---")
+    # try:
+    #     initial_chunks = get_top_n_chunks(query_embedding, n=initial_k)
+    # except Exception as e:
+    #     print(f"Error retrieving chunks from DB: {e}")
+    #     return "Sorry, I encountered an error retrieving information from the database."
 
-    if not initial_chunks:
-        print(
-            "No relevant chunks found in the database (including any newly added ones)."
-        )
-        return "I couldn't find any relevant information to answer your question, even after searching online."
+    # if not initial_chunks:
+    #     print(
+    #         "No relevant chunks found in the database (including any newly added ones)."
+    #     )
+    #     return "I couldn't find any relevant information to answer your question, even after searching online."
 
-    print(f"Retrieved {len(initial_chunks)} initial chunks from DB.")
+    # print(f"Retrieved {len(initial_chunks)} initial chunks from DB.")
     # Optional: Print initial chunks for comparison
     # print("Top initial chunks (before reranking):")
     # for i, chunk in enumerate(initial_chunks[:3]): # Print top 3
@@ -120,7 +126,14 @@ def get_answer(
     # 3. Reranking Step
     print("--- Reranking chunks ---")
     try:
-        reranked_chunks = rerank_chunks(query, initial_chunks, top_n=rerank_top_n)
+        # Convert all articles to chunks using convert_article_to_chunk
+        formatted_chunks = []
+        for article in articles:
+            chunks = convert_article_to_chunk(article)
+            formatted_chunks.append(chunks)
+        reranked_chunks = rerank_with_cross_encoder(query, formatted_chunks, score_threshold=1.0)
+        # reranked_chunks = rerank_documents(query, formatted_chunks, model_name='all-MiniLM-L6-v2')
+        # reranked_chunks = rerank_chunks(query, json_documents, top_n=rerank_top_n)
         # Optional: Print reranked chunks
         # print("Top reranked chunks:")
         # for i, chunk in enumerate(reranked_chunks):
@@ -128,7 +141,8 @@ def get_answer(
     except Exception as e:
         print(f"Error during reranking: {e}. Skipping reranking.")
         # Fallback: use top N initial chunks if reranker fails
-        reranked_chunks = initial_chunks[:rerank_top_n]
+        # reranked_chunks = initial_chunks[:rerank_top_n]
+        reranked_chunks = []  # No chunks available after reranking
 
     # 4. Generation Step
     print("--- Generating final answer ---")
@@ -142,14 +156,14 @@ def get_answer(
         # Combine chunk texts into a single context string
         context = "\n\n".join([chunk[1] for chunk in reranked_chunks])
 
-        # Use the selected LLM provider instance to generate the answer
-        # Pass the history along with the query and context
+        with open("context.txt", "w", encoding="utf-8") as f:
+            f.write(context)
         final_answer = llm_provider.generate_answer(query, context, history)
     except Exception as e:
         print(f"Error during answer generation: {e}")
         return "Sorry, I encountered an error while formulating the final answer."
 
-    return final_answer, all_keywords[0]
+    return final_answer, keywords2[0]
 
 
 if __name__ == "__main__":
@@ -185,7 +199,7 @@ if __name__ == "__main__":
             history_to_pass = chat_history if args.use_chat_history else []
 
             # Execute the pipeline, passing the appropriate history
-            answer, _ = get_answer(user_query, history_to_pass, scrape_k=5)
+            answer, _ = get_answer(user_query, history_to_pass, scrape_k=50)
 
             # Print the final answer
             print("\n--- ANSWER ---")

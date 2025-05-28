@@ -1,7 +1,8 @@
 import requests
 from lxml import etree
 from datetime import datetime
-
+from db.db import get_article
+import traceback
 
 def replace_slovenian_months(date_str):
     months = {
@@ -24,21 +25,24 @@ def replace_slovenian_months(date_str):
 
 
 def get_preview_data(article):
-    h3 = article.xpath(".//h3")
-    if h3:
-        h3 = h3[0]
+    try:
+        h3 = article.xpath(".//h3")
+        if h3:
+            h3 = h3[0]
 
-    link = h3.xpath("./span[@class='news-cat']/a")
-    if link:
-        link = link[0]
-    subcategory = link.text.strip() if link.text else "No subcategory found"
-    title = h3.xpath("./a")
-    url = title[0].get("href") if title else "No URL found"
-    title_text = title[0].text.strip() if title else "No title text found"
-    date = article.xpath("./p[contains(@class, 'media-meta')]/text()")
+        link = h3.xpath("./span[@class='news-cat']/a")
+        if link:
+            link = link[0]
+        subcategory = link.text.strip() if link.text else "No subcategory found"
+        title = h3.xpath("./a")
+        url = title[0].get("href") if title else "No URL found"
+        title_text = title[0].text.strip() if title else "No title text found"
+        date = article.xpath("./p[contains(@class, 'media-meta')]/text()")
 
-    date_text = date[0].strip() if date else None
-    return title_text, subcategory, date_text, url
+        date_text = date[0].strip() if date else None
+        return title_text, subcategory, date_text, url
+    except Exception as e:
+        return "No title text found", "No subcategory found", None, "No URL found"
 
 
 def get_article_data(article_content):
@@ -66,11 +70,21 @@ def get_article_data(article_content):
         detailed_date = meta_container[0].xpath('./div[@class="publish-meta"]/text()')
         if detailed_date:
             detailed_date = detailed_date[0].strip()
-            date, time = detailed_date.split(" ob ")
-            date = replace_slovenian_months(date)
-            # print("Date:", date.strip())
-            # print("Time:", time.strip())
-            formatted_date = datetime.strptime(f"{date} {time}", "%d. %B %Y %H.%M")
+            try:
+                if " ob " in detailed_date:
+                    date, time = detailed_date.split(" ob ")
+                    date = replace_slovenian_months(date)
+                elif " - " in detailed_date:
+                    date, time = detailed_date.split(" - ")
+                    date = replace_slovenian_months(date)
+                else:
+                    date = replace_slovenian_months(detailed_date)
+                    time = "00.00"  # default time if not present
+                # print("Date:", date.strip())
+                # print("Time:", time.strip())
+                formatted_date = datetime.strptime(f"{date} {time}", "%d. %B %Y %H.%M")
+            except Exception as e:
+                formatted_date = None
         else:
             detailed_date = None
     header = root.xpath('//header[@class="article-header"]')
@@ -160,35 +174,47 @@ def scrape_news(query, s=None, sort=1, a=1, d=-1, w=-1, per_page=10, group=1):
 
 
 def parse_response(response):
+    try:
+        # 2. Parse the HTML
+        root = etree.HTML(response.content)
 
-    # 2. Parse the HTML
-    root = etree.HTML(response.content)
-
-    # 3. Find all <div> tags with that class
-    #    pass class_name as a string or list of strings
-    articles = root.xpath('//div[@class="md-news"]')
-    fetched_articles = []
-    for article in articles:
-        fetched_article = {}
-        title, subcategory, date_text, url = get_preview_data(article)
-        if "radio-si" in url or "capodistria" in url:
-            print("Skipping article", url)
-            continue
-        fetched_article["title"] = title
-        fetched_article["subcategory"] = subcategory
-        fetched_article["date"] = date_text
-        # time.sleep(1)  # be nice to the server
-        article_response = requests.get(url, headers={"User-Agent": "onj-fri"})
-        article_response.raise_for_status()
-        pieces, subtitle, recap, section, author, date = get_article_data(
-            article_response.content
-        )
-        fetched_article["pieces"] = pieces
-        fetched_article["subtitle"] = subtitle
-        fetched_article["recap"] = recap
-        fetched_article["section"] = section
-        fetched_article["author"] = author
-        fetched_article["url"] = url
-        fetched_article["subcategory"] = subcategory
-        fetched_articles.append(fetched_article)
-    return fetched_articles
+        # 3. Find all <div> tags with that class
+        #    pass class_name as a string or list of strings
+        articles = root.xpath('//div[@class="md-news"]')
+        fetched_articles = []
+        for article in articles:
+            try:
+                fetched_article = {}
+                title, subcategory, date_text, url = get_preview_data(article)
+                existing_article = get_article(url)
+                if existing_article:
+                    fetched_articles.append(existing_article)
+                    continue
+                if "radio-si" in url or "capodistria" in url:
+                    print("Skipping article", url)
+                    continue
+                fetched_article["title"] = title
+                fetched_article["subcategory"] = subcategory
+                fetched_article["date"] = date_text
+                # time.sleep(1)  # be nice to the server
+                article_response = requests.get(url, headers={"User-Agent": "onj-fri"})
+                article_response.raise_for_status()
+                pieces, subtitle, recap, section, author, date = get_article_data(
+                    article_response.content
+                )
+                fetched_article["pieces"] = pieces
+                fetched_article["subtitle"] = subtitle
+                fetched_article["recap"] = recap
+                fetched_article["section"] = section
+                fetched_article["author"] = author
+                fetched_article["url"] = url
+                fetched_article["subcategory"] = subcategory
+                fetched_articles.append(fetched_article)
+            except Exception as e:
+                print(f"Error processing article: {e}")
+                traceback.print_exc()
+                continue
+        return fetched_articles
+    except Exception as e:
+        print(f"Error parsing response: {e}")
+        return []

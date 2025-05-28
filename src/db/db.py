@@ -2,6 +2,7 @@ import os
 from psycopg2 import pool
 from pgvector.psycopg2 import register_vector
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -63,7 +64,7 @@ def get_article(url):
     return None
 
 
-def get_top_n_chunks(query_embedding, n=5):
+def get_top_n_chunks(query_embedding, n=20):
     with DBConnection() as conn:
         if not conn:
             print("Failed to get DB connection in get_top_n_chunks")
@@ -97,3 +98,29 @@ def get_top_n_chunks(query_embedding, n=5):
             traceback.print_exc()  # Print detailed traceback
             conn.rollback()  # Rollback in case of error
             raise  # Re-raise the exception
+
+def get_article(url):
+    """
+    Fetches an article from the database by its URL.
+    
+    Args:
+        url (str): The URL of the article to fetch.
+        
+    Returns:
+        dict: The article data if found, None otherwise.
+    """
+    with DBConnection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT chunk_text
+            FROM public.content_chunks
+            WHERE source_identifier = %s
+            """,
+            (url,),
+        )
+        article = cur.fetchone()
+        chunk_object = json.loads(article[0]) if article else None
+        if chunk_object:
+            return chunk_object
+        return None

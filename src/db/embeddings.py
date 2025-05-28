@@ -1,5 +1,7 @@
 from sentence_transformers import SentenceTransformer
 from db.db import DBConnection
+from datetime import datetime
+import json
 
 # Load a local transformer model once (384‑dim embeddings)
 model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
@@ -34,10 +36,27 @@ def store_chunks(article: dict):
     combined_text = " ".join(paragraph_texts)
     title = article.get("title", "").strip()
     text_to_embed = f"{title} {combined_text}".strip()
-    date = article.get("date", "")
+    # Add all metadata to the text (title, subtitle, recap, section, author, date, subcategory, url)
+    subtitle = article.get("subtitle", "").strip()
+    recap = article.get("recap", "").strip()
+    section = article.get("section", "").strip()
+    author = article.get("author", "").strip()
+    date = article.get("date", "").strip()
+    subcategory = article.get("subcategory", "").strip()
+    url = article.get("url", "").strip()
+    iso_date = ""
     if date:
-        text_to_embed = f"{date} {text_to_embed}".strip()
-
+        try:
+            # Remove any extra spaces and parse flexible d. m. yyyy format
+            date_clean = date.replace(" ", "")
+            parsed_date = datetime.strptime(date_clean, "%d.%m.%Y")
+        except ValueError:
+            parsed_date = None
+        if parsed_date:
+            iso_date = parsed_date.date().isoformat()
+            article["iso_date"] = iso_date
+    object_string = json.dumps(article, ensure_ascii=False)
+    text_to_embed = object_string
     if not text_to_embed:
         # print(f"Empty text to embed after combining title and paragraphs for: {article.get('url', 'N/A')}")
         return  # Avoid storing empty strings
@@ -80,3 +99,54 @@ def store_chunks(article: dict):
             print(f"Error storing chunk for {article.get('url', 'N/A')} in DB: {e}")
             conn.rollback()  # Rollback on error
         # No need for cur.close() or conn.close() due to 'with' statements
+
+def convert_article_to_chunk(article_json):
+    """
+    Convert a JSON article into a flattened context chunk string
+    using pieces parsed from HTML (paragraphs, images, tables).
+    """
+    # Extract metadata fields with defaults
+    title = article_json.get('title', '').strip()
+    subtitle = article_json.get('subtitle', '').strip()
+    subcategory = article_json.get('subcategory', '').strip()
+    date = article_json.get('iso_date') or article_json.get('date', '').strip()
+    url = article_json.get('url', '').strip()
+    author = article_json.get('author', '').strip()
+    section = article_json.get('section', '').strip()
+    recap = article_json.get('recap', '').strip()
+
+    # Build CONTENT by iterating over pre-parsed pieces
+    content_lines = []
+    for piece in article_json.get('pieces', []):
+        ptype = piece.get('type')
+        if ptype == 'paragraph':
+            text = piece.get('text', '').strip()
+            if text:
+                content_lines.append(text)
+        elif ptype == 'image':
+            caption = piece.get('caption', '').strip()
+            content_lines.append(f"[IMAGE: {caption}]")
+        elif ptype == 'table':
+            rows = piece.get('content', [])
+            # format as table text
+            table_lines = ["[TABLE:]"]
+            for row in rows:
+                table_lines.append(" | ".join(cell.strip() for cell in row))
+            table_lines.append("[END TABLE]")
+            content_lines.extend(table_lines)
+
+    content = "\n".join(content_lines)
+
+    # Construct the final chunk string
+    chunk = (
+        f"[DATE: {date}]\n"
+        f"TITLE: {title}\n"
+        f"SUBTITLE: {subtitle}\n"
+        f"SUBCATEGORY: {subcategory}\n"
+        f"URL: {url}\n"
+        f"AUTHOR: {author}\n"
+        f"SECTION: {section}\n"
+        f"RECAP: {recap}\n"
+        f"CONTENT:\n{content}"
+    )
+    return chunk

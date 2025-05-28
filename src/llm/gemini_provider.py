@@ -8,10 +8,27 @@ from typing import List, Dict, Optional
 
 load_dotenv()
 
+_SYSTEM_PROMPT = (
+    "You are a concise assistant. Reply in English in the following format:\n"
+    "Answer: {answer}\nFound in: {sentence where the answer was found}\n"
+    "The context is a list of articles, each formatted as follows:\n"
+    "[DATE: <date>]\nTITLE: <title>\nSUBTITLE: <subtitle>\nSUBCATEGORY: <subcategory>\n"
+    "URL: <url>\nAUTHOR: <author>\nSECTION: <section>\nRECAP: <recap>\nCONTENT: <content>\n"
+    "When searching for answers, use only the 'CONTENT' field of each article.\n"
+    "When referencing where the answer was found, provide the exact sentence from the 'CONTENT' field.\n"
+    "For ordering articles by date, always use the value in the [DATE: ...] field.\n"
+    "Do not add explanations, justifications, citations, or any additional text outside the required format.\n"
+    "If the answer is not present or relevant in the context, reply with \"Not in the provided context\" or \"I don't know\"."
+)
+
 class GeminiProvider(LLMProvider):
-    def __init__(self, model_name: str = "gemini-1.5-flash"):
+    def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key)
+        # models = self.client.models.list()
+        # print("Available models:")
+        # for model in models:
+        #     print(f"- {model.name} ({model.display_name})")
         # self.model = client.get_model(model_name)
 #         self.model = genai.mod (
 #         model_name="gemini-2.0-pro-001",
@@ -29,8 +46,7 @@ class GeminiProvider(LLMProvider):
                 model="gemini-2.0-flash",
                 contents=[
                     # 1️⃣ system prompt – sets the tone
-                    "You are a concise assistant. Reply in Slovenian with a single sentence that directly answers the question. "
-                    "Do NOT add explanations, reasoning, citations, or extra text.",
+                    _SYSTEM_PROMPT,
                     
                     # 2️⃣ knowledge the model can use
                     f"Context:\n{context}",
@@ -39,17 +55,6 @@ class GeminiProvider(LLMProvider):
                     f"Question:\n{query}"
                 ]
             )
-            # response = self.client.models.generate_content(
-            #     [
-            #         {"role": "system", "parts": [self.system_prompt]},
-            #         {"role": "user",   "parts": [f"Context:\n\n{context}"]},
-            #         {"role": "user",   "parts": [query]},
-            #     ],
-            #     generation_config=genai.GenerationConfig(
-            #         temperature=0.25,
-            #         max_output_tokens=250,
-            #     ),
-            # )
             return response.text.strip()
         except Exception as e:
             print(f"Error generating answer: {e}")
