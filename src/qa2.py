@@ -49,7 +49,7 @@ QA_PAIRS: List[Tuple[str, List[str]]] = [
         ],
     ),
     (
-        "Koliko obramb je zbral Jan Oblak na zadnji tekmi Atletica Madrida?",
+        "Koliko obramb je zbral Jan Oblak na zadnji tekmi Atletico Madrida?",
         [
             "Jan Oblak je zbral 6 obramb v zadnji tekmi Atlético Madrid–Real Betis.",
             "Na zadnji tekmi Atlético Madrid–Real Betis je Jan Oblak zbral 6 obramb.",
@@ -68,17 +68,20 @@ QA_PAIRS: List[Tuple[str, List[str]]] = [
     (
         "Koliko golov je Benjamin Šeško dosegel na zadnji tekmi RB Leipziga?",
         [
-            "Podatki za Benjamina Šeška na zadnji tekmi RB Leipziga trenutno niso javno dostopni.",
-            "Za zadnjo tekmo Benjamina Šeška v RB Leipzigu podatki niso javno dostopni.",
-            "Podatki o golih Benjamina Šeška na zadnji tekmi niso na voljo.",
+            "Podatki za Benjamina Šeška na zadnji tekmi ni dosegel nobenega gola.",
+            "Benjamin Šeško na zadnji tekmi RB Leipziga ni dosegel nobenega gola.",
+            "Na zadnji tekmi RB Leipziga Benjamin Šeško ni dosegel nobenega gola.",
+            "Benjamin Šeško ni dosegel nobenega gola na zadnji tekmi.",
         ],
     ),
     (
         "Koliko točk je Dončić dosegel na predzadnji tekmi?",
         [
-            "Podatki za Dončićev nastop na predzadnji tekmi trenutno niso javno dostopni.",
-            "Za predzadnjo tekmo Luke Dončića podatki niso javno dostopni.",
-            "Podatki o točkah Dončića na predzadnji tekmi niso na voljo.",
+            "Dončič je dosegel 38 točk na predzadnji tekmi.",
+            "Na predzadnji tekmi je Luka Dončić dosegel 38 točk.",
+            "Luka Dončić je na predzadnji tekmi dosegel 38 točk.",
+            "Na predzadnji tekmi je Luka Dončić dosegel 38 točk proti Minnesota Timberwolves.",
+            "Luka Dončić je dosegel 38 točk.",
         ],
     ),
     (
@@ -93,9 +96,10 @@ QA_PAIRS: List[Tuple[str, List[str]]] = [
     (
         "Proti kateri ekipi je Benjamin Šeško nazadnje igral?",
         [
-            "Podatki o tekmecu Benjamina Šeška na zadnji tekmi trenutno niso javno dostopni.",
-            "Za zadnjo tekmo Benjamina Šeška podatki o tekmecu niso javno dostopni.",
-            "Podatki o nasprotniku Benjamina Šeška na zadnji tekmi niso na voljo.",
+            "Igral je proti Stuttgartu.",
+            "Benjamin Šeško je nazadnje igral proti Stuttgartu.",
+            "Nazadnje je Benjamin Šeško igral proti Stuttgartu.",
+            "Šeško je zadnjo tekmo igral proti Stuttgartu.",
         ],
     ),
     (
