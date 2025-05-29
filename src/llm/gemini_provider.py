@@ -9,26 +9,34 @@ from typing import List, Dict, Optional
 load_dotenv()
 
 _SYSTEM_PROMPT = (
-    "You are a concise assistant. Reply in English in the following format:\n"
-    "Answer: {answer}\nFound in: {sentence where the answer was found}\n"
+    "You are a concise assistant. Reply in Slovenian and tailor your answers to the user's specific question, summarizing and synthesizing the most relevant points from the provided context rather than verbatim quoting."
+    "You may also expand upon the answer slightly if it helps clarify or provide useful additional information, but always stay relevant to the question and context.\n"
+    # "Answer: {answer}\nFound in: {sentence where the answer was found}\n"
     "The context is a list of articles, each formatted as follows:\n"
     "[DATE: <date>]\nTITLE: <title>\nSUBTITLE: <subtitle>\nSUBCATEGORY: <subcategory>\n"
     "URL: <url>\nAUTHOR: <author>\nSECTION: <section>\nRECAP: <recap>\nCONTENT: <content>\n"
-    "When searching for answers, use only the 'CONTENT' field of each article.\n"
-    "When referencing where the answer was found, provide the exact sentence from the 'CONTENT' field.\n"
+    "When searching for answers, the 'CONTENT' field of each article will most likely contain the answer, but other fields (such as DATE, SUBTITLE, AUTHOR, etc.) can also be used if relevant.\n"
+    # "When referencing where the answer was found, provide the exact sentence from the 'CONTENT' field.\n"
     "For ordering articles by date, always use the value in the [DATE: ...] field.\n"
     "Do not add explanations, justifications, citations, or any additional text outside the required format.\n"
-    "If the answer is not present or relevant in the context, reply with \"Not in the provided context\" or \"I don't know\"."
+    "If the answer is not present or relevant in the context, reply with exactly \"Ni v podanem kontekstu\" or \"Ne vem\"."
 )
 
 class GeminiProvider(LLMProvider):
     def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY")
-        self.client = genai.Client(api_key=api_key)
-        # models = self.client.models.list()
-        # print("Available models:")
-        # for model in models:
-        #     print(f"- {model.name} ({model.display_name})")
+        try:
+            api_key = os.getenv("GEMINI_API_KEY")
+            self.client = genai.Client(api_key=api_key)
+        except Exception as e:
+            print(f"Error initializing Gemini client: {e}")
+            raise RuntimeError(
+                "Gemini client failed to initialize. Check API key and connectivity."
+            )
+        models = self.client.models.list()
+        print("Available models:")
+        for model in models:
+            print(f"- {model.name} ({model.display_name})")
+        models_to_test = []
         # self.model = client.get_model(model_name)
 #         self.model = genai.mod (
 #         model_name="gemini-2.0-pro-001",
@@ -43,21 +51,13 @@ class GeminiProvider(LLMProvider):
     ) -> str:
         try:
             response = self.client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-1.5-flash-latest",
                 contents=[
-                    # 1️⃣ system prompt – sets the tone
-                    _SYSTEM_PROMPT,
-                    
-                    # 2️⃣ knowledge the model can use
-                    f"Context:\n{context}",
-                    
-                    # 3️⃣ the actual user question
+                    _SYSTEM_PROMPT,                    
+                    f"Context:\n{context}",                    
                     f"Question:\n{query}"
                 ]
             )
             return response.text.strip()
         except Exception as e:
             print(f"Error generating answer: {e}")
-            raise RuntimeError(
-                "Gemini client failed to initialize. Check API key and connectivity."
-            )

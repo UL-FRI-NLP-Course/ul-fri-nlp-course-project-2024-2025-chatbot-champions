@@ -19,6 +19,8 @@ from llm.local_provider import LocalProvider
 from llm.gemini_provider import GeminiProvider
 from llm.ollama_provider import OllamaProvider
 import json
+import re
+import time
 
 # Load environment variables from .env file
 load_dotenv()
@@ -38,6 +40,7 @@ if google_api_key:
 #     print("--- Using Local Provider (OpenAI API key not found) ---")
 #     llm_provider = LocalProvider()
 
+max_retries = 3
 
 def get_answer(
     query: str,
@@ -76,15 +79,15 @@ def get_answer(
         # # Combine all keywords into a single string for scraping
         # all_keywords_str = " ".join(all_keywords)
         keywords2 = extract_keywords_from_text(query)
-        if keywords2 is None:
+        if keywords2 is None or len(keywords2) == 0:
             return ""
         print("Extracted Keywords from text: ", keywords2)
-        news_response = scrape_news(keywords2, per_page=scrape_k)
+        news_response = scrape_news(keywords2[0], per_page=scrape_k)
         articles = parse_response(news_response)
         print(f"Found {len(articles)} new articles.")
         if articles:
             for article in articles:
-                print(f"Storing article: {article['title']}")
+                # print(f"Storing article: {article['title']}")
                 # This function embeds and stores the chunks from the article
                 store_chunks(article)
             print("Finished storing new articles.")
@@ -156,14 +159,32 @@ def get_answer(
         # Combine chunk texts into a single context string
         context = "\n\n".join([chunk[1] for chunk in reranked_chunks])
 
-        with open("context.txt", "w", encoding="utf-8") as f:
+        # Save context to a uniquely named file using keywords from the query
+        keywords_str = re.sub(r'\W+', '_', keywords2[0])[:80]
+        filename = f"context_{keywords_str}.txt"
+        with open(filename, "w", encoding="utf-8") as f:
             f.write(context)
-        final_answer = llm_provider.generate_answer(query, context, history)
+        final_answer = ""
+        for attempt in range(max_retries):
+            try:
+            # Use a timeout by running in a separate thread if needed, but here we use a simple approach
+            # If llm_provider supports timeout parameter, pass it; otherwise, rely on its internal timeout
+                final_answer = llm_provider.generate_answer(query, context, history)
+                if final_answer is not None:
+                    break
+            except Exception as e:
+                print(f"Attempt {attempt+1} failed: {e}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying in 2 seconds...")
+                    time.sleep(2)
+                else:
+                    print("All retries failed.")
+                    return "Sorry, I encountered repeated errors while generating the final answer."
     except Exception as e:
         print(f"Error during answer generation: {e}")
         return "Sorry, I encountered an error while formulating the final answer."
 
-    return final_answer, keywords2[0]
+    return final_answer
 
 
 if __name__ == "__main__":
@@ -199,7 +220,7 @@ if __name__ == "__main__":
             history_to_pass = chat_history if args.use_chat_history else []
 
             # Execute the pipeline, passing the appropriate history
-            answer, _ = get_answer(user_query, history_to_pass, scrape_k=50)
+            answer = get_answer(user_query, history_to_pass, scrape_k=50)
 
             # Print the final answer
             print("\n--- ANSWER ---")

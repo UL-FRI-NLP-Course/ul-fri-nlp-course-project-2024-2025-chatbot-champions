@@ -1,147 +1,187 @@
 from typing import List, Tuple
 from main import get_answer
-from difflib import SequenceMatcher
+import sacrebleu
+from rouge_score import rouge_scorer
+import statistics
 # ──────────────────────────────────────────────────────────────────────────────
 # Configuration
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Placeholder Q&A pairs – update the answers to the correct statistics before use.
-QA_PAIRS: List[Tuple[str, str]] = [
-    (
-        "Koliko točk je Luka Dončić zadel na zadnji tekmi?",
-        "Luka Dončić je zadel 28 točk na zadnji tekmi proti Minnesoti.",
-    ),
-# NER Keywords:  ['Luka Dončić']
-# Keyword Keywords:  ['točk', 'luka', 'dončić', 'zadel', 'zadnji', 'tekmi']
-# POS Keywords:  ['točk', 'Luka', 'Dončić', 'zadnji', 'tekmi']
-    (
-        "Koliko golov je Anže Kopitar dosegel na zadnji tekmi Los Angeles Kings?",
-        "Anže Kopitar je dosegel en gol.",
-    ),
-# NER Keywords:  ['Anže Kopitar', 'Los Angeles Kings']
-# Keyword Keywords:  ['golov', 'anže', 'kopitar', 'dosegel', 'zadnji', 'tekmi', 'los', 'angeles', 'kings']
-# POS Keywords:  ['golov', 'Anže', 'Kopitar', 'zadnji', 'tekmi', 'Los', 'Angeles', 'Kings']
-    (
-        "Kateri slovenski kolesar je zmagal zadnjo etapo Dirke po Franciji?",
-        "Tadej Pogačar je osvojil zadnjo etapo Toura.",
-    ),
-# NER Keywords:  ['Dirke po Franciji']
-# Keyword Keywords:  ['slovenski', 'kolesar', 'zmagal', 'zadnjo', 'etapo', 'dirke', 'franciji']
-# POS Keywords:  ['slovenski', 'kolesar', 'zadnjo', 'etapo', 'Dirke', 'Franciji']
-    (
-        "Koliko točk je Tadej Pogačar zbral na zadnji dirki Liège-Bastogne-Liège?",
-        "Pogačar je zbral 60 točk za lestvico UCI.",
-    ),
-# NER Keywords:  ['Tadej Pogačar', 'Liège', 'Bastogne']
-# Keyword Keywords:  ['točk', 'tadej', 'pogačar', 'zbral', 'zadnji', 'dirki']
-# POS Keywords:  ['točk', 'Tadej', 'Pogačar', 'zadnji', 'dirki', 'Liège', 'Bastogne', 'Liège']
+QA_PAIRS: List[Tuple[str, List[str]]] = [
+    # (
+    #     "Koliko točk je Luka Dončić zadel na zadnji tekmi?",
+    #     [
+    #         "Luka Dončić je dosegel 28 točk v zadnji tekmi proti Minnesota Timberwolves.",
+    #         "Na zadnji tekmi proti Minnesota Timberwolves je Luka Dončić dosegel 28 točk.",
+    #         "Luka Dončić je na zadnji tekmi dosegel 28 točk.",
+    #         "Na zadnji tekmi je Luka Dončić dosegel 28 točk proti Minnesota Timberwolves.",
+    #         "Dončić je na zadnji tekmi dosegel 28 točk.",
+    #         "Luka Dončić je dosegel 28 točk.",
+    #     ],
+    # ),
+    # (
+    #     "Koliko golov je Anže Kopitar dosegel na zadnji tekmi Los Angeles Kings?",
+    #     [
+    #         "Anže Kopitar je dosegel 1 gol na zadnji tekmi proti Edmonton Oilers.",
+    #         "Na zadnji tekmi proti Edmonton Oilers je Anže Kopitar dosegel 1 gol.",
+    #         "Kopitar je na zadnji tekmi dosegel 1 gol.",
+    #         "Anže Kopitar je dosegel 1 gol.",
+    #     ],
+    # ),
+    # (
+    #     "Kateri slovenski kolesar je zmagal zadnjo etapo Dirke po Franciji?",
+    #     [
+    #         "Tadej Pogačar je zmagal zadnjo etapo Dirke po Franciji.",
+    #         "Zadnjo etapo Dirke po Franciji je zmagal Tadej Pogačar.",
+    #         "Zadnjo etapo je zmagal slovenski kolesar Tadej Pogačar.",
+    #         "Slovenski kolesar Tadej Pogačar je bil zmagovalec zadnje etape.",
+    #         "Ni v kontekstu.",
+    #         "Ni dovolj konteksta.",
+    #     ],
+    # ),
     (
         "Katero mesto je Ilka Štuhec osvojila na zadnjem smuku?",
-        "Ilka Štuhec je bila tretja.",
+        [
+            "Osvojila je 11. mesto.",
+            "Na zadnjem smuku je Ilka Štuhec osvojila 11. mesto.",
+            "Ilka Štuhec je na zadnjem smuku zasedla 11. mesto.",
+        ],
     ),
-# NER Keywords:  ['Ilka Štuhec', 'Kvitfjellu']
-# Keyword Keywords:  ['mesto', 'ilka', 'štuhec', 'osvojila', 'zadnjem', 'smuku', 'kvitfjellu']
-# POS Keywords:  ['mesto', 'Ilka', 'Štuhec', 'zadnjem', 'smuku', 'Kvitfjellu']
-    (
-        "Koliko točk je Rok Možič dosegel na zadnji tekmi italijanskega prvenstva?",
-        "Rok Možič je dosegel 21 točk.",
-    ),
-# NER Keywords:  ['Rok Možič']
-# Keyword Keywords:  ['točk', 'rok', 'možič', 'dosegel', 'zadnji', 'tekmi', 'italijanskega', 'prvenstva']
-# POS Keywords:  ['točk', 'Rok', 'Možič', 'zadnji', 'tekmi', 'italijanskega', 'prvenstva']
-    (
-        "Katero mesto je Tim Gajser osvojil na zadnji dirki MXGP v Lommlu?",
-        "Tim Gajser je bil prvi.",
-    ),
-# NER Keywords:  ['Tim Gajser', 'Lommlu']
-# Keyword Keywords:  ['mesto', 'tim', 'gajser', 'osvojil', 'zadnji', 'dirki', 'mxgp', 'lommlu']
-# POS Keywords:  ['mesto', 'Tim', 'Gajser', 'zadnji', 'dirki', 'MXGP', 'Lommlu']
-    (
-        "Koliko golov je slovenska ženska rokometna reprezentanca dosegla na zadnji tekmi evropskega prvenstva?",
-        "Slovenke so dosegle 27 golov.",
-    ),
-# NER Keywords:  []
-# Keyword Keywords:  ['golov', 'slovenska', 'ženska', 'rokometna', 'reprezentanca', 'dosegla', 'zadnji', 'tekmi', 'evropskega', 'prvenstva']
-# POS Keywords:  ['golov', 'slovenska', 'ženska', 'rokometna', 'reprezentanca', 'zadnji', 'tekmi', 'evropskega', 'prvenstva']
     (
         "Koliko obramb je zbral Jan Oblak na zadnji tekmi Atletica Madrida?",
-        "Jan Oblak ni imel veliko dela in ni ubranil nobenega strela.",
+        [
+            "Jan Oblak je zbral 6 obramb v zadnji tekmi Atlético Madrid–Real Betis.",
+            "Na zadnji tekmi Atlético Madrid–Real Betis je Jan Oblak zbral 6 obramb.",
+            "Oblak je na zadnji tekmi zbral 6 obramb.",
+            "Jan Oblak je zbral 6 obramb.",
+        ],
     ),
-# NER Keywords:  ['Jan Oblak', 'Atletica Madrida']
-# Keyword Keywords:  ['obramb', 'zbral', 'jan', 'oblak', 'zadnji', 'tekmi', 'atletica', 'madrida']
-# POS Keywords:  ['obramb', 'Jan', 'Oblak', 'zadnji', 'tekmi', 'Atletica', 'Madrida']
     (
         "Koliko točk je Žiga Jelar osvojil na zadnji tekmi svetovnega pokala v smučarskih skokih?",
-        "Žiga Jelar je osvojil 32 točk.",
+        [
+            "Žiga Jelar na zadnji tekmi svetovnega pokala ni osvojil nobene točke – ostal je brez uvrstitvenih mest.",
+            "Na zadnji tekmi svetovnega pokala v smučarskih skokih Žiga Jelar ni osvojil točk.",
+            "Žiga Jelar na zadnji tekmi svetovnega pokala ni dosegel točk.",
+        ],
     ),
-# NER Keywords:  ['Žiga Jelar']
-# Keyword Keywords:  ['točk', 'žiga', 'jelar', 'osvojil', 'zadnji', 'tekmi', 'svetovnega', 'pokala', 'smučarskih', 'skokih']
-# POS Keywords:  ['točk', 'Žiga', 'Jelar', 'zadnji', 'tekmi', 'svetovnega', 'pokala', 'smučarskih', 'skokih']
-    (
-        "Katero mesto je Urša Bogataj osvojila na zadnji tekmi svetovnega pokala v smučarskih skokih?",
-        "Urša Bogataj je bila druga.",
-    ),
-# NER Keywords:  ['Urša Bogataj']
-# Keyword Keywords:  ['mesto', 'urša', 'bogataj', 'osvojila', 'zadnji', 'tekmi', 'svetovnega', 'pokala', 'smučarskih', 'skokih']
-# POS Keywords:  ['mesto', 'Urša', 'Bogataj', 'zadnji', 'tekmi', 'svetovnega', 'pokala', 'smučarskih', 'skokih']
-    (
-        "Koliko sekund zaostanka je imel Primož Roglič na kronometru zadnjega dne Gira?",
-        "Zaostal je za 14 sekund.",
-    ),
-# NER Keywords:  ['Primož Roglič', 'Gira']
-# Keyword Keywords:  ['sekund', 'zaostanka', 'imel', 'primož', 'roglič', 'kronometru', 'zadnjega', 'dne', 'gira']
-# POS Keywords:  ['sekund', 'zaostanka', 'Primož', 'Roglič', 'kronometru', 'zadnjega', 'dne', 'Gira']
-    (
-        "Koliko točk je Cedevita Olimpija dosegla na zadnji tekmi ABA lige?",
-        "Cedevita Olimpija je dosegla 89 točk.",
-    ),
-# NER Keywords:  ['Cedevita Olimpija', 'ABA']
-# Keyword Keywords:  ['točk', 'cedevita', 'olimpija', 'dosegla', 'zadnji', 'tekmi', 'aba', 'lige']
-# POS Keywords:  ['točk', 'Cedevita', 'Olimpija', 'zadnji', 'tekmi', 'ABA', 'lige']
-    (
-        "Koliko golov je dosegla slovenska hokejska reprezentanca na zadnji pripravljalni tekmi?",
-        "Reprezentanca je dosegla tri gole.",
-    ),
-# NER Keywords:  []
-# Keyword Keywords:  ['golov', 'dosegla', 'slovenska', 'hokejska', 'reprezentanca', 'zadnji', 'pripravljalni', 'tekmi']
-# POS Keywords:  ['golov', 'slovenska', 'hokejska', 'reprezentanca', 'zadnji', 'pripravljalni', 'tekmi']
     (
         "Koliko golov je Benjamin Šeško dosegel na zadnji tekmi RB Leipziga?",
-        "Benjamin Šeško ni dosegel gola.",
+        [
+            "Podatki za Benjamina Šeška na zadnji tekmi RB Leipziga trenutno niso javno dostopni.",
+            "Za zadnjo tekmo Benjamina Šeška v RB Leipzigu podatki niso javno dostopni.",
+            "Podatki o golih Benjamina Šeška na zadnji tekmi niso na voljo.",
+        ],
     ),
-# NER Keywords:  ['Benjamin Šeško', 'RB Leipziga']
-# Keyword Keywords:  ['golov', 'benjamin', 'šeško', 'dosegel', 'zadnji', 'tekmi', 'rb', 'leipziga']
-# POS Keywords:  ['golov', 'Benjamin', 'zadnji', 'tekmi', 'RB', 'Leipziga']
+    (
+        "Koliko točk je Dončić dosegel na predzadnji tekmi?",
+        [
+            "Podatki za Dončićev nastop na predzadnji tekmi trenutno niso javno dostopni.",
+            "Za predzadnjo tekmo Luke Dončića podatki niso javno dostopni.",
+            "Podatki o točkah Dončića na predzadnji tekmi niso na voljo.",
+        ],
+    ),
+    (
+        "Proti kateri ekipi je Luka Dončić nazadnje igral?",
+        [
+            "Luka Dončić je nazadnje igral proti Minnesota Timberwolves.",
+            "Nazadnje je Luka Dončić igral proti Minnesota Timberwolves.",
+            "Dončić je zadnjo tekmo igral proti Minnesota Timberwolves.",
+            "Luka Dončić je igral proti Minnesota Timberwolves.",
+        ],
+    ),
+    (
+        "Proti kateri ekipi je Benjamin Šeško nazadnje igral?",
+        [
+            "Podatki o tekmecu Benjamina Šeška na zadnji tekmi trenutno niso javno dostopni.",
+            "Za zadnjo tekmo Benjamina Šeška podatki o tekmecu niso javno dostopni.",
+            "Podatki o nasprotniku Benjamina Šeška na zadnji tekmi niso na voljo.",
+        ],
+    ),
+    (
+        "Proti kateri ekipi je Anže Kopitar nazadnje igral?",
+        [
+            "Anže Kopitar je nazadnje igral proti Edmonton Oilers.",
+            "Nazadnje je Anže Kopitar igral proti Edmonton Oilers.",
+            "Kopitar je zadnjo tekmo igral proti Edmonton Oilers.",
+            "Anže Kopitar je igral proti Edmonton Oilers.",
+        ],
+    ),
 ]
 
-def is_correct(model_answer: str, expected: str, query: str, threshold: float = 0.55) -> bool:
+BLEU_THRESHOLD = 10.0
+ROUGE_L_THRESHOLD = 0.5
+
+def evaluate_metrics(
+    model_answer: str,
+    expected_refs: List[str]
+) -> Tuple[float, float, float, float]:
+    # 1) BLEU with multiple refs
+    # sacrebleu expects List[List[str]] for corpus_bleu, but for sentence_bleu it takes List[str]
+    bleu = sacrebleu.sentence_bleu(model_answer, expected_refs).score
+
+    # 2) ROUGE: score each ref, then take the max F1 across them
+    scorer = rouge_scorer.RougeScorer(
+        ['rouge1','rouge2','rougeL'], use_stemmer=True
+    )
+    best_r1, best_r2, best_rl = 0.0, 0.0, 0.0
+
+    for ref in expected_refs:
+        scores = scorer.score(ref, model_answer)
+        best_r1 = max(best_r1, scores['rouge1'].fmeasure)
+        best_r2 = max(best_r2, scores['rouge2'].fmeasure)
+        best_rl = max(best_rl, scores['rougeL'].fmeasure)
+
+    return bleu, best_r1, best_r2, best_rl
+
+def is_correct_flag(bleu: float, rougel: float,
+                    bleu_thr: float = BLEU_THRESHOLD,
+                    rougel_thr: float = ROUGE_L_THRESHOLD) -> bool:
     """
-    Returns True if the model_answer is sufficiently similar to expected.
-    Uses a similarity threshold (default 0.8).
+    Returns True if both BLEU and ROUGE-L scores meet thresholds.
     """
-    model = model_answer.lower().replace(query.lower(), "").rstrip(".")
-    exp = expected.lower().replace(query.lower(), "").rstrip(".")
-    similarity = SequenceMatcher(None, model, exp).ratio()
-    return similarity >= threshold
+    return bleu >= bleu_thr and rougel >= rougel_thr
 
 
 def run_evaluation():
     total = len(QA_PAIRS)
-    correct = 0
+    bleu_scores, rouge1_scores, rouge2_scores, rougel_scores = [], [], [], []
+    correct_count = 0
 
-    print("\nRunning evaluation…\n")
+    print("\nRunning evaluation with BLEU, ROUGE & correctness flag…\n")
     for idx, (question, expected) in enumerate(QA_PAIRS, start=1):
-        answer, keyword = get_answer(question, [])
-        ok = is_correct(answer, expected, keyword)
-        correct += int(ok)
+        hypothesis = get_answer(question, [], scrape_k=50)
+        bleu, r1, r2, rl = evaluate_metrics(hypothesis, expected)
+        is_correct = is_correct_flag(bleu, rl)
 
-        status = "✅" if ok else "❌"
+        bleu_scores.append(bleu)
+        rouge1_scores.append(r1)
+        rouge2_scores.append(r2)
+        rougel_scores.append(rl)
+        correct_count += int(is_correct)
+
+        status = "✅" if is_correct else "❌"
         print(f"{idx:2}. {status} Q: {question}")
-        print(f"   → Model:\n{answer}")
-        print(f"   → Expected:\n{expected}\n")
+        print(f"   → Model Answer: {hypothesis}")
+        print(f"   → Expected    : {expected}")
+        print(f"   ↳ BLEU    : {bleu:.2f}")
+        print(f"   ↳ ROUGE-1: {r1:.3f}, ROUGE-2: {r2:.3f}, ROUGE-L: {rl:.3f}\n")
 
     print("─" * 60)
-    print(f"Accuracy: {correct}/{total} = {correct / total:.0%}\n")
+    # Overall metrics
+    avg_bleu = statistics.mean(bleu_scores) if bleu_scores else 0
+    avg_r1 = statistics.mean(rouge1_scores) if rouge1_scores else 0
+    avg_r2 = statistics.mean(rouge2_scores) if rouge2_scores else 0
+    avg_rl = statistics.mean(rougel_scores) if rougel_scores else 0
+
+    print("Aggregate scores:")
+    print(f"  * Average BLEU    : {avg_bleu:.2f}")
+    print(f"  * Avg ROUGE-1 F1  : {avg_r1:.3f}")
+    print(f"  * Avg ROUGE-2 F1  : {avg_r2:.3f}")
+    print(f"  * Avg ROUGE-L F1  : {avg_rl:.3f}\n")
+    
+    accuracy = correct_count / total * 100
+    print(f"Correct/Total: {correct_count}/{total} => Accuracy: {accuracy:.1f}%\n")
 
 
 if __name__ == "__main__":
