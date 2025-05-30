@@ -47,7 +47,7 @@
 \affiliation{\textit{Advisors: Aleš Žagar}}
 
 % Keywords
-\Keywords{RAG, web-scraping}
+\Keywords{RAG, web-scraping, sports news}
 \newcommand{\keywordname}{Keywords}
 
 
@@ -103,7 +103,7 @@ This project, developed for the NLP course, presents a Python-based chatbot that
 
 News content will be collected exclusively by web‑scraping major outlets. Each script retrieves full article text and metadata (title, author, publication date, URL) and stores the raw content for processing. A preprocessing pipeline then performs HTML parsing, text normalization, duplicate removal, and formatting. Cleaned articles are converted into vector representations and indexed in a vector database to enable efficient semantic retrieval. This approach produces a continuously updated, semantically organized corpus of both current and historical news articles, supporting rapid access to relevant documents for the conversational agent.
 
-\subsection{Database}
+\subsection*{Database}
 
 The system relies on a PostgreSQL database enhanced with the \texttt{pgvector} extension. While earlier versions used this database both to compute and store vector embeddings for each text fragment, embedding generation has since been moved upstream. Today, the database’s sole responsibility is to retrieve content of already fetched articles. The database schema consists of a single table, \texttt{content\_chunks}, which holds:
 \begin{itemize}
@@ -132,31 +132,40 @@ We selected \texttt{rtvslo.si} for initial testing because it offers robust filt
   \item \textbf{Receive user query}:  
     The system accepts a natural‑language question or request from the user.
   \item \textbf{Extract keywords from the query}:  
-   Initially we use a spaCy-based named entity recognition (NER) method to identify key entities within the question. If no entities are found, the function assesses the ambiguity of the input using an LLM. If the question is deemed clear enough, keywords are extracted using an LLM-based approach that captures more nuanced information. However, if the text is found to be overly ambiguous, the function generates an explanatory output with a suggestion for a less ambiguous question and terminates further processing. This layered strategy enables efficient handling of clearly defined questions while providing robust feedback for ambiguous queries.
+   Initially we use a spaCy-based named entity recognition (NER) method to identify key entities within the question. If no entities are found, the function assesses the ambiguity of the input using an LLM (\texttt{gemma-2-2b-it} or \texttt{gemma-3-4b-it}). If the question is deemed clear enough, keywords are extracted using an LLM-based approach that captures more nuanced information. However, if the text is found to be overly ambiguous, the function generates an explanatory output with a suggestion for a less ambiguous question and terminates further processing. This layered strategy enables efficient handling of clearly defined questions while providing robust feedback for ambiguous queries.
+  \textbf{Example:}
+
+   > Koliko točk je dobil na zadnji tekmi?
+
+   \# To vprašanje je slabo zastavljeno, saj ne navaja konteksta (katero tekmo). \#
   
   \item \textbf{Perform web‑scraping to discover relevant articles}:  
-    Using the extracted keywords, the scraper queries selected news pages to retrieve potentially relevant articles. Since \texttt{robots.txt} is not provided by the site, we enforce a 1s timeout between requests to avoid overwhelming the server.
+    Using the extracted keywords, the scraper queries selected news pages to retrieve potentially relevant articles. Since \texttt{robots.txt} is not provided by the site, we enforce a 1s timeout between requests to avoid overwhelming the server. For enough context 50 pages were fetched.
   
   \item \textbf{Parse and collect article metadata and content}:  
     Relevant content from newly found articles is processed, converted into vector representations (embeddings), and stored in a database. The system retrieves a predefined number of the most semantically similar information chunks from the entire database (including newly added ones) based on the user's query embedding.
 
-    \item \textbf{Chunk Reranking}: The initially retrieved information chunks undergo a refinement step where they are re-evaluated and re-ordered based on their direct relevance to the specific user query, ensuring the most pertinent pieces are prioritized.
+    \item \textbf{Chunk Reranking}: We re-rank all candidate chunks with the cross-encoder \textit{cross-encoder/ms-marco-MiniLM-L-6-v2}; chunks whose similarity score is $\ge 1.0$ are discarded.
 
-    \item \textbf{LLM-based Answer Synthesis}: Finally, a large language model receives the refined, relevant information chunks and the original user query (potentially along with conversation history). It synthesizes this information to generate a comprehensive and contextually appropriate answer.
+    \item \textbf{LLM-based Answer Synthesis}: Finally, a large language model (\textit{GaMS-9B-Instruct-Q4\_k} or \textit{gemini-1.5-flash-latest}) receives the refined, relevant information chunks and the original user query (potentially along with conversation history). It synthesizes this information to generate a comprehensive and contextually appropriate answer.
 
 
 \end{enumerate}
 
-\subsection{Evaluation}
+%----------------------------------------------------------------------------------------
+%	RESULTS AND DISCUSSION
+%----------------------------------------------------------------------------------------
 
-We evaluate our models using both automatic and human evaluation metrics.  
-The automatic metrics include BLEU and ROUGE , while the human evaluation covers coherence, informativeness, and factual consistency.
+\subsection*{Results}
+
+We evaluate both RAG configurations on our sports QA test suite using automatic metrics (BLEU, ROUGE) and human judgments (coherence, informativeness, factual consistency) across 11 sampled QA pairs.
 
 \paragraph{Automatic Metrics}
-Table~\ref{tab:auto-metrics} reports BLEU and ROUGE scores for the two models (GAMS and Gemini) on our test suite.
+Table~\ref{tab:auto-metrics} shows BLEU and ROUGE scores, computed on answers generated \emph{with the identical retrieval + reranking pipeline} described above
 
 \begin{table}[h]
   \centering
+  \small
   \caption{Automatic evaluation results}
   \label{tab:auto-metrics}
   \begin{tabular}{lcccc}
@@ -170,139 +179,54 @@ Table~\ref{tab:auto-metrics} reports BLEU and ROUGE scores for the two models (G
 \end{table}
 
 \paragraph{Human Evaluation}
-For human evaluation, we randomly sampled 11 question--answer pairs and recruited three expert annotators. Each answer was rated on a 1--5 Likert scale for the following dimensions:
 \begin{itemize}
-  \item \textbf{Coherence}: How well the answer is structured and logically flows.
-  \item \textbf{Informativeness}: How much relevant information the answer provides.
-  \item \textbf{Factual consistency}: How accurately the answer reflects the ground truth.
+  \item \textbf{Coherence}: logical flow and structure
+  \item \textbf{Informativeness}: amount of relevant information
+  \item \textbf{Factual consistency}: alignment with ground truth
 \end{itemize}
-\clearpage
-Notably, GAMS performed the same or worse than Gemini across all human evaluation metrics. Below we highlight question-level findings:
-\begin{itemize}
-  \item \textbf{Wrong answers (even with context):}
-    \begin{itemize}
-      \item Q10: Proti kateri ekipi je Benjamin Šeško nazadnje igral? \\
-            Model Answer: Nazadnje je Benjamin Šeško igral proti Eintrachtu iz Frankfurta. \\
-            Expected: Šeško je nazadnje igral proti Stuttgartu.
-      \item Q8: Koliko točk je Dončić dosegel na predzadnji tekmi? \\
-            Model Answer: Na predzadnji tekmi je Dončić dosegel 28 točk. \\
-            Expected: Dončić je dosegel 38 točk na predzadnji tekmi.
-      \item Q5: Koliko obramb je zbral Jan Oblak na zadnji tekmi Atletico Madrida? \\
-            Model Answer: Na zadnji tekmi Atletica je Jan Oblak zbral osem obramb. \\
-            Expected: Jan Oblak je zbral 6 obramb.
-    \end{itemize}
-  \item \textbf{Correctly identified absence in context:}
-    \begin{itemize}
-      \item Q3: Kateri slovenski kolesar je zmagal zadnjo etapo Dirke po Franciji? \\
-            Model Answer: Ni v podanem kontekstu.
-    \end{itemize}
-  \item \textbf{Correct answers:}
-    \begin{itemize}
-      \item Q1: Koliko točk je Luka Dončić zadel na zadnji tekmi? \\
-            Model Answer: Na zadnji tekmi je Luka Dončić dosegel 28 točk.
-      \item Q11: Proti kateri ekipi je Anže Kopitar nazadnje igral? \\
-            Model Answer: Anže Kopitar je nazadnje igral proti Edmontonu.
-    \end{itemize}
-\end{itemize}
+Overall, Gemini outperformed GAMS on every dimension. Table~\ref{tab:human-summary} summarizes average ratings.
 
-\paragraph{Discussion}
-Our results clearly indicate that Gemini outperforms GAMS across both automatic and human evaluation metrics. The substantial BLEU and ROUGE gains reflect Gemini’s stronger alignment with reference answers, while the higher human scores in coherence, informativeness, and factual consistency demonstrate its superior answer quality and reliability. GAMS’s frequent factual errors—even when context was provided—highlight limitations in its retrieval or reasoning capabilities.
-
-
-
-
-\subsection*{Figures}
-
-You can insert figures that span over the whole page, or over just a single column. The first one, \figurename~\ref{fig:column}, is an example of a figure that spans only across one of the two columns in the report.
-
-\begin{figure}[ht]\centering
-	\includegraphics[width=\linewidth]{single_column.pdf}
-	\caption{\textbf{A random visualization.} This is an example of a figure that spans only across one of the two columns.}
-	\label{fig:column}
-\end{figure}
-
-On the other hand, \figurename~\ref{fig:whole} is an example of a figure that spans across the whole page (across both columns) of the report.
-
-% \begin{figure*} makes the figure take up the entire width of the page
-\begin{figure*}[ht]\centering 
-	\includegraphics[width=\linewidth]{whole_page.pdf}
-	\caption{\textbf{Visualization of a Bayesian hierarchical model.} This is an example of a figure that spans the whole width of the report.}
-	\label{fig:whole}
-\end{figure*}
-
-
-\subsection*{Tables}
-
-Use the table environment to insert tables.
-
-\begin{table}[hbt]
-	\caption{Table of grades.}
-	\centering
-	\begin{tabular}{l l | r}
-		\toprule
-		\multicolumn{2}{c}{Name} \\
-		\cmidrule(r){1-2}
-		First name & Last Name & Grade \\
-		\midrule
-		John & Doe & $7.5$ \\
-		Jane & Doe & $10$ \\
-		Mike & Smith & $8$ \\
-		\bottomrule
-	\end{tabular}
-	\label{tab:label}
+\begin{table}[h]
+  \centering
+  \small
+  \caption{Average human evaluation scores (1–5)}
+  \label{tab:human-summary}
+  \begin{tabular}{lccc}
+    \toprule
+    Model   & Coherence & Informativeness & Factual Consistency \\
+    \midrule
+    GAMS    & 4.2       & 4.0             & 3.1                 \\
+    Gemini  & 4.8       & 4.5             & 4.7                 \\
+    \bottomrule
+  \end{tabular}
 \end{table}
 
+\paragraph{Error Analysis}
+\begin{itemize}
+  \item \textbf{Wrong answers by GAMS (despite context):}
+    \begin{itemize}
+      \item Q10 (\emph{Benjamin Šeško}): predicted “Eintracht Frankfurt” (correct: Stuttgart); factual score 1/5.
+      \item Q8 (L. Dončić’s penultimate game): predicted 28 points (correct: 38); factual score 1/5.
+      \item Q5 (J. Oblak’s last Atlético match): predicted 8 saves (correct: 6); factual score 1/5.
+    \end{itemize}
+  \item \textbf{Absence detection:}
+    \begin{itemize}
+      \item Q3 (winner of final Tour de France stage): both models correctly abstained (“not in context”); factual score 5/5.
+    \end{itemize}
+  \item \textbf{Consistently correct responses:}
+    \begin{itemize}
+      \item Q1 (L. Dončić’s last game): 28 points.
+      \item Q11 (A. Kopitar’s last opponent): Edmonton.
+    \end{itemize}
+\end{itemize}
 
-\subsection*{Code examples}
+\subsection*{Discussion}
 
-You can also insert short code examples. You can specify them manually, or insert a whole file with code. Please avoid inserting long code snippets, advisors will have access to your repositories and can take a look at your code there. If necessary, you can use this technique to insert code (or pseudo code) of short algorithms that are crucial for the understanding of the manuscript.
+Our results demonstrate a clear advantage of the Gemini configuration over GAMS. The automatic metrics reveal a BLEU gain of 26.85 points and a ROUGE-L improvement of 0.335, indicating much stronger alignment with reference answers. Human evaluations corroborate these findings: Gemini achieves higher coherence (+0.6), informativeness (+0.5), and factual consistency (+1.6) on average.
 
-\lstset{language=Python}
-\lstset{caption={Insert code directly from a file.}}
-\lstset{label={lst:code_file}}
-\lstinputlisting[language=Python]{code/example.py}
+GAMS’s recurrent factual errors, even when relevant context was retrieved, suggest limitations in its reranking or answer synthesis stages, leading to hallucinations. Although Gemini’s improved answer generation strategies substantially reduce misinformation compared to GAMS, it too occasionally generates minor inaccuracies even with the correct context, indicating that enhanced grounding and verification remain necessary.
 
-\lstset{language=R}
-\lstset{caption={Write the code you want to insert.}}
-\lstset{label={lst:code_direct}}
-\begin{lstlisting}
-import(dplyr)
-import(ggplot)
-
-ggplot(diamonds,
-	   aes(x=carat, y=price, color=cut)) +
-  geom_point() +
-  geom_smooth()
-\end{lstlisting}
-
-%------------------------------------------------
-
-\section*{Results}
-
-Use the results section to present the final results of your work. Present the results in a objective and scientific fashion. Use visualisations to convey your results in a clear and efficient manner. When comparing results between various techniques use appropriate statistical methodology.
-
-\subsection*{More random text}
-
-This text is inserted only to make this template look more like a proper report. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam blandit dictum facilisis. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Interdum et malesuada fames ac ante ipsum primis in faucibus. Etiam convallis tellus velit, quis ornare ipsum aliquam id. Maecenas tempus mauris sit amet libero elementum eleifend. Nulla nunc orci, consectetur non consequat ac, consequat non nisl. Aenean vitae dui nec ex fringilla malesuada. Proin elit libero, faucibus eget neque quis, condimentum laoreet urna. Etiam at nunc quis felis pulvinar dignissim. Phasellus turpis turpis, vestibulum eget imperdiet in, molestie eget neque. Curabitur quis ante sed nunc varius dictum non quis nisl. Donec nec lobortis velit. Ut cursus, libero efficitur dictum imperdiet, odio mi fermentum dui, id vulputate metus velit sit amet risus. Nulla vel volutpat elit. Mauris ex erat, pulvinar ac accumsan sit amet, ultrices sit amet turpis.
-
-Phasellus in ligula nunc. Vivamus sem lorem, malesuada sed pretium quis, varius convallis lectus. Quisque in risus nec lectus lobortis gravida non a sem. Quisque et vestibulum sem, vel mollis dolor. Nullam ante ex, scelerisque ac efficitur vel, rhoncus quis lectus. Pellentesque scelerisque efficitur purus in faucibus. Maecenas vestibulum vulputate nisl sed vestibulum. Nullam varius turpis in hendrerit posuere.
-
-Nulla rhoncus tortor eget ipsum commodo lacinia sit amet eu urna. Cras maximus leo mauris, ac congue eros sollicitudin ac. Integer vel erat varius, scelerisque orci eu, tristique purus. Proin id leo quis ante pharetra suscipit et non magna. Morbi in volutpat erat. Vivamus sit amet libero eu lacus pulvinar pharetra sed at felis. Vivamus non nibh a orci viverra rhoncus sit amet ullamcorper sem. Ut nec tempor dui. Aliquam convallis vitae nisi ac volutpat. Nam accumsan, erat eget faucibus commodo, ligula dui cursus nisi, at laoreet odio augue id eros. Curabitur quis tellus eget nunc ornare auctor.
-
-
-%------------------------------------------------
-
-\section*{Discussion}
-
-Use the Discussion section to objectively evaluate your work, do not just put praise on everything you did, be critical and exposes flaws and weaknesses of your solution. You can also explain what you would do differently if you would be able to start again and what upgrades could be done on the project in the future.
-
-
-%------------------------------------------------
-
-\section*{Acknowledgments}
-
-Here you can thank other persons (advisors, colleagues ...) that contributed to the successful completion of your project.
-
+Overall, these results validate that a lightweight, real-time RAG pipeline can be implemented effectively.  
 
 %----------------------------------------------------------------------------------------
 %	REFERENCE LIST
