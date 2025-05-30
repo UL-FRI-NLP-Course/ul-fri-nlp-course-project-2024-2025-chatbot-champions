@@ -9,37 +9,38 @@ import statistics
 
 # Placeholder Q&A pairs – update the answers to the correct statistics before use.
 QA_PAIRS: List[Tuple[str, List[str]]] = [
-    # (
-    #     "Koliko točk je Luka Dončić zadel na zadnji tekmi?",
-    #     [
-    #         "Luka Dončić je dosegel 28 točk v zadnji tekmi proti Minnesota Timberwolves.",
-    #         "Na zadnji tekmi proti Minnesota Timberwolves je Luka Dončić dosegel 28 točk.",
-    #         "Luka Dončić je na zadnji tekmi dosegel 28 točk.",
-    #         "Na zadnji tekmi je Luka Dončić dosegel 28 točk proti Minnesota Timberwolves.",
-    #         "Dončić je na zadnji tekmi dosegel 28 točk.",
-    #         "Luka Dončić je dosegel 28 točk.",
-    #     ],
-    # ),
-    # (
-    #     "Koliko golov je Anže Kopitar dosegel na zadnji tekmi Los Angeles Kings?",
-    #     [
-    #         "Anže Kopitar je dosegel 1 gol na zadnji tekmi proti Edmonton Oilers.",
-    #         "Na zadnji tekmi proti Edmonton Oilers je Anže Kopitar dosegel 1 gol.",
-    #         "Kopitar je na zadnji tekmi dosegel 1 gol.",
-    #         "Anže Kopitar je dosegel 1 gol.",
-    #     ],
-    # ),
-    # (
-    #     "Kateri slovenski kolesar je zmagal zadnjo etapo Dirke po Franciji?",
-    #     [
-    #         "Tadej Pogačar je zmagal zadnjo etapo Dirke po Franciji.",
-    #         "Zadnjo etapo Dirke po Franciji je zmagal Tadej Pogačar.",
-    #         "Zadnjo etapo je zmagal slovenski kolesar Tadej Pogačar.",
-    #         "Slovenski kolesar Tadej Pogačar je bil zmagovalec zadnje etape.",
-    #         "Ni v kontekstu.",
-    #         "Ni dovolj konteksta.",
-    #     ],
-    # ),
+    (
+        "Koliko točk je Luka Dončić zadel na zadnji tekmi?",
+        [
+            "Luka Dončić je dosegel 28 točk v zadnji tekmi proti Minnesota Timberwolves.",
+            "Na zadnji tekmi proti Minnesota Timberwolves je Luka Dončić dosegel 28 točk.",
+            "Luka Dončić je na zadnji tekmi dosegel 28 točk.",
+            "Na zadnji tekmi je Luka Dončić dosegel 28 točk proti Minnesota Timberwolves.",
+            "Dončić je na zadnji tekmi dosegel 28 točk.",
+            "Luka Dončić je dosegel 28 točk.",
+        ],
+    ),
+    (
+        "Koliko golov je Anže Kopitar dosegel na zadnji tekmi Los Angeles Kings?",
+        [
+            "Anže Kopitar je dosegel 1 gol na zadnji tekmi proti Edmonton Oilers.",
+            "Na zadnji tekmi proti Edmonton Oilers je Anže Kopitar dosegel 1 gol.",
+            "Kopitar je na zadnji tekmi dosegel 1 gol.",
+            "Anže Kopitar je dosegel 1 gol.",
+        ],
+    ),
+    (
+        "Kateri slovenski kolesar je zmagal zadnjo etapo Dirke po Franciji?",
+        [
+            "Tadej Pogačar je zmagal zadnjo etapo Dirke po Franciji.",
+            "Zadnjo etapo Dirke po Franciji je zmagal Tadej Pogačar.",
+            "Zadnjo etapo je zmagal slovenski kolesar Tadej Pogačar.",
+            "Slovenski kolesar Tadej Pogačar je bil zmagovalec zadnje etape.",
+            "Ni v kontekstu.",
+            "Ni dovolj konteksta.",
+            "Ni v podanem kontekstu."
+        ],
+    ),
     (
         "Katero mesto je Ilka Štuhec osvojila na zadnjem smuku?",
         [
@@ -68,7 +69,6 @@ QA_PAIRS: List[Tuple[str, List[str]]] = [
     (
         "Koliko golov je Benjamin Šeško dosegel na zadnji tekmi RB Leipziga?",
         [
-            "Podatki za Benjamina Šeška na zadnji tekmi ni dosegel nobenega gola.",
             "Benjamin Šeško na zadnji tekmi RB Leipziga ni dosegel nobenega gola.",
             "Na zadnji tekmi RB Leipziga Benjamin Šeško ni dosegel nobenega gola.",
             "Benjamin Šeško ni dosegel nobenega gola na zadnji tekmi.",

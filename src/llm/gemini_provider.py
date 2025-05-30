@@ -19,7 +19,7 @@ _SYSTEM_PROMPT = (
     # "When referencing where the answer was found, provide the exact sentence from the 'CONTENT' field.\n"
     "For ordering articles by date, always use the value in the [DATE: ...] field.\n"
     "Do not add explanations, justifications, citations, or any additional text outside the required format.\n"
-    "If the answer is not present or relevant in the context, reply with exactly \"Ni v podanem kontekstu\" or \"Ne vem\"."
+    "If the answer is not present or relevant in the context, reply with exactly \"Ni v podanem kontekstu\"."
 )
 
 class GeminiProvider(LLMProvider):
