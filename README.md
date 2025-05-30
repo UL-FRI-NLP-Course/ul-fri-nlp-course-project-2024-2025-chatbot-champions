@@ -42,6 +42,16 @@ _Ensure you have Conda or Miniconda installed._
 
 You should now have the necessary dependencies installed to run the project.
 
+## Additional Setup Steps
+
+After setting up your environment using either `pip` or `conda` and installing the requirements, you need to download the Slovene language model for spaCy. Run the following command in your terminal (ensure your virtual environment is activated if you are using one):
+
+```bash
+python -m spacy download sl_core_news_sm
+```
+
+This model is necessary for natural language processing tasks in Slovene within the project.
+
 ## Configuration
 
 1.  **Environment Variables:**
@@ -56,8 +66,12 @@ You should now have the necessary dependencies installed to run the project.
     DATABASE_URL=postgresql://test:test@localhost:5432/test
 
     # Optional: Add your OpenAI API key to use the OpenAI LLM provider
-    # If omitted, the application will use the local (mocked) provider.
+    # If omitted, and GEMINI_API_KEY is also omitted, the application will use the local (mocked) provider.
     # OPENAI_API_KEY=sk-...
+
+    # Optional: Add your Gemini API key to use the Gemini LLM provider
+    # If omitted, and OPENAI_API_KEY is also omitted, the application will use the local (mocked) provider.
+    # GEMINI_API_KEY=AIza...
     ```
 
 ## Running the Application
