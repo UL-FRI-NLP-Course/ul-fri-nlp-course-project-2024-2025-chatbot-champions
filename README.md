@@ -102,6 +102,8 @@ This model is necessary for natural language processing tasks in Slovene within 
     Optional flags:
 
     - `--use-chat-history`: Enable conversation history.
+  
+    Note: For best results, capitalize all names and write questions grammatically correct.
 
 4.  **Stopping Services:**
     When you are finished, stop the Docker Compose services:
