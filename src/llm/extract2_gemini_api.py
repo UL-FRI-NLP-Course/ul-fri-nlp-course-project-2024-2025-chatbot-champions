@@ -36,17 +36,33 @@ def grade_question(question: str) -> str:
     """
     Determines if a question is specific enough to be processed further.
     """
-    prompt = f"""
-Si natančen popravljalec vprašanj.
-Tvoja naloga je razložiti zakaj je neko vprašanje slabo zastavljeno oziroma ga popraviti. 
-Če je vprašanje preveč splošno to povej.
+    prompt="""
+        Si natančen popravljalec vprašanj.
+        Tvoja naloga je razložiti zakaj je neko vprašanje slabo zastavljeno oziroma ga popraviti. 
+        Če je vprašanje preveč splošno to povej.
+        
+        Odgovore obkroži s #.
+        Odgovori samo v eni vrstici.
 
-Odgovore obkroži s #.
-Odgovori samo v eni vrstici.
+        Primeri:
+        Vprašanje: Kaj je življenje?
+        Odgovor: #Vprašanje je preveč splošno, ker je odgovor lahko neskončen in zahteva široko razlago. Ali ste mislili: Kako se je začelo življenje?#
+        Vprašanje: Povej mi vse o zgodovini.
+        Odgovor: #Vprašanje je preveč splošno, ker pokriva široko področje in zahteva obsežno raziskavo. Ali ste mislili: Kaj preučuje veda zgodovina?#
+        Vprašanje: Kdo je včeraj zmagal na tekmi?
+        Odgovor: #Vprašanje je preveč splošno, ker ne navaja, o kateri tekmi se govori.#
+        Vprašanje: Kdaj je bil izumljen telefon?
+        Odgovor: #Vprašanje se ne nanaša na osebo, dogodek, organizacijo, ...#
+        Vprašanje: Kakšne so posledice podnebnih sprememb?
+        Odgovor: #Vprašanje se ne nanaša na osebo, dogodek, organizacijo, ...#
+        Vprašanje: Kako naj se pripravim na izpit?
+        Odgovor: #Vprašanje je preveč splošno, ker ne navaja, za kateri izpit gre.#
+        Vprašanje: Kje je Peter?
+        Odgovor: #Vprašanje je preveč splošno. Kateri Peter vas zanima?#
 
-######
-Vprašanje: {question}
-"""
+        ######
+        Vprašanje: {question}
+        """
     answer = call_gemma(prompt)
     try:
         return answer.split("######")[1].split("#")[1].strip()
@@ -58,19 +74,68 @@ def determine_ambiguity(question: str) -> str:
     """
     Determines if a question is too ambiguous and needs to be rewritten.
     """
-    prompt = f"""
-Si sistem za odločanje, ali je neko vprašanje preveč splošno ali ne.
-Vhodi so v slovenščini.
-Vprašanje je preveč splošno, če:
--je odgovor preveč zapleten
--ne določa teme dovolj natančno
--vsebuje samo ime neke osebe, ne pa priimka
-Odgovori naj vsebujejo samo odgovor 'ok' ali 'ne'.
-Odgovore obkroži s #.
+    prompt="""
+        Si sistem za odločanje, ali je neko vprašanje preveč splošno ali ne.
+        Vhodi so v slovenščini.
+        Vprašanje je preveč splošno, če:
+        -je odgovor preveč zapleten
+        -ne določa teme dovolj natančno
+        -vsebuje samo ime neke osebe, ne pa priimka
+        Odgovori naj vsebujejo samo odgovor 'ok' ali 'ne'.
+        Na vprašanja ne odgovrajaj, ampak samo vrni odgovor.
+        Izogibaj se odgovarjanju s programsko kodo.
+        Odgovore obkroži s #.
 
-####
-- Vhod: {question}
-"""
+        Primeri:
+        - Vhod: Kaj se je zgodilo ko je luka dončič prejšnji teden obiskal Slovenijo
+        - Izhod: #ok#
+
+        - Vhod: Kaj je predsednik vlade izjavil o novem zakonu
+        - Izhod: #ok#
+
+        - Vhod: Kakšne so posledice podnebnih sprememb na Arktiki
+        - Izhod: #ok#
+
+        - Vhod: Kako je potekala zadnja seja Združenih narodov
+        - Izhod: #ok#
+
+        - Vhod: Kateri ukrepi so bili sprejeti za izboljšanje javnega zdravstva
+        - Izhod: #ok#
+
+        - Vhod: Kako so se odzvali na zadnje spremembe zakonodaje
+        - Izhod: #ne#
+
+        - Vhod: Kako je potekala zadnja razprava
+        - Izhod: #ne#
+
+        - Vhod: Kakšne so bile posledice zadnje krize
+        - Izhod: #ne#
+
+        - Vhod: Kje je Peter
+        - Izhod: #ne#
+
+        - Vhod: Kaj dela Jure Dolinar
+        - Izhod: #ok#
+
+        - Vhod: Na katerem mestu je končal Primož Roglič
+        - Izhod: #ok#
+
+        - Kje se nahaja največji slap na svetu
+        - Izhod: #ok#
+
+        - Vhod: Kdaj je bil izdan zadnji album Adele
+        - Izhod: #ok#
+        
+        - Vhod: Proti komu je na zadnji tekmi igral luka dončič
+        - Izhod: #ok#
+
+        - Vhod: Koliko točk je dosegel peter prevc prejšnji teden
+        - Izhod: #ok#
+
+        ####
+        Tu je vhod, določi ali je preveč splošen ali ne:
+        - Vhod: {question}
+        """
     answer = call_gemma(prompt)
     try:
         return answer.split("####")[1].split("#")[1].strip()
@@ -82,16 +147,48 @@ def extract_keywords(question: str) -> str:
     """
     Converts a question to a searchable query using an LLM.
     """
-    prompt = f"""
-Si sistem za izluščanje osebka iz vprašanja.
-Vhodi so v slovenščini.
-Tvoj cilj je iz vhodnega vprašanja izluščiti osebek v imenovalniku ednine.
-Odgovori naj vsebujejo samo osebek.
-Odgovori obkroži s #.
+    prompt="""
+        Si sistem za izluščanje osebka iz vprašanja.
+        Vhodi so v slovenščini.
+        Tvoj cilj je iz vhodnega vprašanja izluščiti osebek v imenovalniku ednine.
+        Odgovori naj vsebujejo samo osebek.
+        Na vprašanja ne odgovrajaj, ampak samo izlušči osebek.
+        V odgovorih naj bo samo osebek, brez dodatnih besed.
+        Izogibaj se odgovarjanju s programsko kodo.
+        Odgovore obkroži s #.
 
-####
-- Vhod: {question}
-"""
+        Primeri:
+        - Vhod: Kaj se je zgodilo ko je luka dončič prejšnji teden obiskal Slovenijo
+        - Izhod: #Luka Dončič#
+
+        - Vhod: Kaj je predsednik vlade izjavil o novem zakonu
+        - Izhod: #Predsednik vlade#
+
+        - Vhod: Kakšne so posledice podnebnih sprememb na Arktiki
+        - Izhod: #Podnebne spremembe#
+
+        - Vhod: Kako je potekala zadnja seja Združenih narodov
+        - Izhod: #Seja Združenih narodov#
+
+        - Vhod: Kateri ukrepi so bili sprejeti za izboljšanje javnega zdravstva
+        - Izhod: #Ukrepi za izboljšanje javnega zdravstva#
+
+        - Vhod: Kako so se odzvali na zadnje spremembe zakonodaje o delovnih razmerjih
+        - Izhod: #Spremembe zakonodaje o delovnih razmerjih#
+
+        - Vhod: Kako je potekala zadnja razprava o reformi izobraževalnega sistema
+        - Izhod: #Razprava o reformi izobraževalnega sistema#
+
+        - Vhod: Kakšne so bile posledice zadnje gospodarske krize
+        - Izhod: #Zadnja gospodarska kriza#
+
+        - Vhod: Kje je Peter?
+        - Izhod: #Peter#
+
+        ####
+        Tu je vhod, iz njega izlušči osebek v imenovalniku ednine:
+        - Vhod: {question}
+        """
     answer = call_gemma(prompt)
     try:
         return answer.split("####")[1].split("#")[1].strip()
