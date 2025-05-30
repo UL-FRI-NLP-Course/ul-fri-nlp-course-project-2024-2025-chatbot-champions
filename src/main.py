@@ -66,7 +66,6 @@ def get_answer(
     print(f"\nProcessing query: '{query}'")
 
     # 0. Scrape and Store New Data (Real-time component)
-    print(f"--- Scraping and storing new data for query (top {scrape_k} results) ---")
     try:
         # ner = extract_ner(query)
         # print("NER Keywords: ", ner)
@@ -82,6 +81,7 @@ def get_answer(
         if keywords2 is None or len(keywords2) == 0:
             return ""
         print("Extracted Keywords from text: ", keywords2)
+        print(f"--- Scraping and storing new data for query (top {scrape_k} results) ---")
         news_response = scrape_news(keywords2[0], per_page=scrape_k)
         articles = parse_response(news_response)
         print(f"Found {len(articles)} new articles.")
@@ -223,9 +223,10 @@ if __name__ == "__main__":
             answer = get_answer(user_query, history_to_pass, scrape_k=50)
 
             # Print the final answer
-            print("\n--- ANSWER ---")
-            print(answer)
-            print("--------------")
+            if answer and answer != "":
+                print("\n--- ANSWER ---")
+                print(answer)
+                print("--------------")
 
             # Append current exchange to history only if enabled
             if args.use_chat_history:

@@ -197,6 +197,8 @@ def parse_response(response):
                 fetched_article["subcategory"] = subcategory
                 fetched_article["date"] = date_text
                 # time.sleep(1)  # be nice to the server
+                if url == 'No URL found':
+                    continue
                 article_response = requests.get(url, headers={"User-Agent": "onj-fri"})
                 article_response.raise_for_status()
                 pieces, subtitle, recap, section, author, date = get_article_data(
