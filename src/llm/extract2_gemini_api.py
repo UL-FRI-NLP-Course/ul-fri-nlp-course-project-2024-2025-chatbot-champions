@@ -218,6 +218,7 @@ def extract_keywords_from_text(text: str) -> list[str] | None:
         else:
             explanation = grade_question(text)
             print(explanation)
+            print("Preverite, ali ste lastna imena zapisali z veliko začetnico.")
             return None
     return keywords
 
